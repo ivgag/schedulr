@@ -25,10 +25,11 @@
 go.work
 
 ### VisualStudioCode ###
-.vscode/*
+.vscode/**
 !.vscode/settings.json
 !.vscode/tasks.json
-!.vscode/launch.json
+# Needs to be unignored
+.vscode/launch.json
 !.vscode/extensions.json
 !.vscode/*.code-snippets
 
@@ -45,5 +46,6 @@ go.work
 
 # Secrets
 .secrets
+googleCalendar/credentials.json
 
 # End of https://www.toptal.com/developers/gitignore/api/go,visualstudiocode
