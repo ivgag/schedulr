@@ -35,6 +35,9 @@ func main() {
 func handleMessage(message *tgbotapi.Message) {
 	chatID := message.Chat.ID
 	text := message.Text
+	caption := message.Caption
+
+	println(text)
 
 	resp, err := aiServiceClient.CreateChatCompletion(
 		context.Background(),
@@ -42,8 +45,38 @@ func handleMessage(message *tgbotapi.Message) {
 			Model: openai.GPT3Dot5Turbo,
 			Messages: []openai.ChatCompletionMessage{
 				{
+					Role: openai.ChatMessageRoleSystem,
+					Content: `
+						You are a trained calendar assistant.
+						The user will send you information about one or more events.
+						The information might include announcements, tickets, ads, etc.
+						Extract details from the user's input and transform them into JSON to 
+						later create an appointment on a calendar (Google, Microsoft, Yandex, etc.).
+						If you cannot extract details for any event, return an empty string.
+
+						The output structure is:
+
+						{
+						"events": [
+							{
+							"title": "Event Title",
+							"description": "A brief description of the event",
+							"start": {
+								"dateTime": "YYYY-MM-DD'T'HH:mm:ss"
+							},
+							"end": {
+								"dateTime": "YYYY-MM-DD'T'HH:mm:ss"
+							},
+							"location": "Event Location",
+							"eventType": "announcement"
+							}
+						]
+						}
+						`,
+				},
+				{
 					Role:    openai.ChatMessageRoleUser,
-					Content: "Hello!",
+					Content: text + " " + caption,
 				},
 			},
 		},
@@ -57,7 +90,7 @@ func handleMessage(message *tgbotapi.Message) {
 	fmt.Println(resp.Choices[0].Message.Content)
 
 	// Simple reply
-	msg := tgbotapi.NewMessage(chatID, "You said: "+text)
+	msg := tgbotapi.NewMessage(chatID, resp.Choices[0].Message.Content)
 	_, err = telegramChatBot.Send(msg)
 	if err != nil {
 		log.Println("Error sending message:", err)
@@ -68,7 +101,7 @@ func telegramBot() *tgbotapi.BotAPI {
 	// Replace with your actual Telegram bot token
 	botToken := os.Getenv(TELEGRAM_BOT_TOKEN_ENV)
 	if botToken == "" {
-		log.Fatal("TELEGRAM_BOT_TOKEN_ENV environment variable not set")
+		log.Fatal(TELEGRAM_BOT_TOKEN_ENV + " environment variable not set")
 	}
 
 	bot, err := tgbotapi.NewBotAPI(botToken)
@@ -87,7 +120,7 @@ func telegramBot() *tgbotapi.BotAPI {
 func createOpenAiClient() *openai.Client {
 	openAiToken := os.Getenv(OPEN_AI_CLEINT_TOKEN_ENV)
 	if openAiToken == "" {
-		log.Fatal("OPEN_AI_CLEINT_TOKEN_ENV environment variable not set")
+		log.Fatal(OPEN_AI_CLEINT_TOKEN_ENV + " environment variable not set")
 	}
 
 	return openai.NewClient(openAiToken)
