@@ -46,6 +46,6 @@ go.work
 
 # Secrets
 .secrets
-googleCalendar/credentials.json
+google/credentials.json
 
 # End of https://www.toptal.com/developers/gitignore/api/go,visualstudiocode
