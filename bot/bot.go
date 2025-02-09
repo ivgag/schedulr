@@ -5,70 +5,19 @@ import (
 	"log"
 	"os"
 
+	"github.com/ivgag/schedulr/ai"
+	"github.com/ivgag/schedulr/service"
+	"github.com/ivgag/schedulr/storage"
+
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
 var telegramBotTokenEnv = "TELEGRAM_BOT_TOKEN"
 
-func RunTelegramBot() (Bot, error) {
-
-	// Set up to receive updates
-	u := tgbotapi.NewUpdate(0)
-	u.Timeout = 60
-
-	var telegramChatBot = telegramBot()
-	updates := telegramChatBot.GetUpdatesChan(u)
-
-	for update := range updates {
-		if update.Message == nil { // ignore any non-Message updates
-			continue
-		}
-
-		if !update.Message.IsCommand() { // ignore any non-command Messages
-			continue
-		}
-
-		// Create a new MessageConfig. We don't have text yet,
-		// so we leave it empty.
-		msg := tgbotapi.NewMessage(update.Message.Chat.ID, "")
-
-		// Extract the command from the Message.
-
-		switch update.Message.Command() {
-		case "help":
-			msg.Text = "I understand "
-		case "start":
-		default:
-			msg.Text = "I don't know that command"
-		}
-
-		if _, err := telegramChatBot.Send(msg); err != nil {
-			log.Panic(err)
-		}
-	}
-
-	// Listen for updates
-	for update := range updates {
-		if update.Message != nil { // If we got a message
-			handleMessage(telegramChatBot, update.Message)
-		}
-	}
-
-	return Bot{TelegramChatBot: telegramChatBot}, nil
-}
-
-func handleMessage(telegramChatBot *tgbotapi.BotAPI, message *tgbotapi.Message) {
-	chatID := message.Chat.ID
-
-	// Simple reply
-	msg := tgbotapi.NewMessage(chatID, "I'm a bot, please talk to me!")
-	_, err := telegramChatBot.Send(msg)
-	if err != nil {
-		log.Println("Error sending message:", err)
-	}
-}
-
-func telegramBot() *tgbotapi.BotAPI {
+func RunTelegramBot(
+	userService *service.UserService,
+	eventService *service.EventService,
+) (Bot, error) {
 	// Replace with your actual Telegram bot token
 	botToken := os.Getenv(telegramBotTokenEnv)
 	if botToken == "" {
@@ -85,13 +34,85 @@ func telegramBot() *tgbotapi.BotAPI {
 
 	fmt.Printf("Authorized on account %s\n", bot.Self.UserName)
 
-	return bot
+	return Bot{
+		telegramChatBot: bot,
+		userService:     userService,
+		eventService:    eventService,
+	}, nil
 }
 
 type Bot struct {
-	TelegramChatBot *tgbotapi.BotAPI
+	telegramChatBot *tgbotapi.BotAPI
+	userService     *service.UserService
+	eventService    *service.EventService
+}
+
+func (b *Bot) Start() {
+	go b.startReceivingUpdates()
 }
 
 func (b *Bot) Stop() {
-	b.TelegramChatBot.StopReceivingUpdates()
+	b.telegramChatBot.StopReceivingUpdates()
+}
+
+func (b *Bot) startReceivingUpdates() {
+	u := tgbotapi.NewUpdate(0)
+	u.Timeout = 60
+
+	updates := b.telegramChatBot.GetUpdatesChan(u)
+
+	for update := range updates {
+		msg, err := b.handleUpdate(update)
+		if err != nil {
+			log.Panic(err)
+		}
+
+		reply := tgbotapi.NewMessage(update.Message.Chat.ID, msg)
+
+		if _, err := b.telegramChatBot.Send(reply); err != nil {
+			log.Panic(err)
+		}
+	}
+}
+
+func (b *Bot) handleUpdate(update tgbotapi.Update) (string, error) {
+	if update.Message == nil { // ignore any non-Message updates
+		return "", nil
+	}
+
+	if update.Message.IsCommand() { // ignore any non-command Messages
+		return b.handleCommand(update.Message)
+	} else {
+		return b.handleMessage(update.Message)
+	}
+}
+
+func (b *Bot) handleMessage(message *tgbotapi.Message) (string, error) {
+	events, err := b.eventService.CreateEventsFromUserMessage(
+		ai.UserMessage{
+			Text:    message.Text,
+			Caption: message.Caption,
+		},
+	)
+
+	if err != nil {
+		return "", err
+	}
+
+	return fmt.Sprintf("Created events: ", events), nil
+}
+
+func (b *Bot) handleCommand(message *tgbotapi.Message) (string, error) {
+	switch command := message.Command(); command {
+	case "help":
+		return "I understand ", nil
+	case "init":
+		b.userService.CreateUser(&storage.User{
+			TelegramId: message.From.ID,
+		})
+
+		return "registered", nil
+	default:
+		return "I don't know that command", nil
+	}
 }

@@ -2,6 +2,7 @@ package ai
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"log"
 	"os"
@@ -67,7 +68,13 @@ func (o *OpenAI) GetEvents(message *UserMessage) ([]Event, error) {
 
 	log.Println("OpenAI response:", resp.Choices[0].Message.Content)
 
-	return []Event{}, nil
+	var events []Event
+	err = json.Unmarshal([]byte(resp.Choices[0].Message.Content), &events)
+	if err != nil {
+		return nil, err
+	}
+
+	return events, nil
 }
 
 func NewOpenAI() (*OpenAI, error) {

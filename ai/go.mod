@@ -1,4 +1,4 @@
-module github.com/ivgag/schedulr/bot
+module github.com/ivgag/schedulr/ai
 
 go 1.23.1
 

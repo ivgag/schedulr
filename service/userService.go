@@ -5,7 +5,9 @@ import (
 )
 
 func NewUserService(userRepository storage.UserRepository) *UserService {
-	return &UserService{}
+	return &UserService{
+		userRepository: userRepository,
+	}
 }
 
 type UserService struct {

@@ -2,12 +2,11 @@
 package storage
 
 type User struct {
-	ID   int
-	Name string
+	ID         int
+	TelegramId int64
 }
 
 type UserRepository interface {
 	GetUserByID(id int) (User, error)
 	CreateUser(user *User) error
-	UpdateUser(user *User) error
 }

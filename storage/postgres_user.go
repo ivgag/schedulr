@@ -15,8 +15,8 @@ func NewPostgresUserRepository(db *sql.DB) UserRepository {
 
 func (r *PostgresUserRepository) GetUserByID(id int) (User, error) {
 	var user User
-	query := "SELECT id, name FROM users WHERE id = $1"
-	err := r.db.QueryRow(query, id).Scan(&user.ID, &user.Name)
+	query := "SELECT id, telegram_id FROM users WHERE id = $1"
+	err := r.db.QueryRow(query, id).Scan(&user.ID, &user.TelegramId)
 	if err != nil {
 		return User{}, err
 	}
@@ -24,11 +24,6 @@ func (r *PostgresUserRepository) GetUserByID(id int) (User, error) {
 }
 
 func (r *PostgresUserRepository) CreateUser(user *User) error {
-	query := "INSERT INTO users(name) VALUES($1) RETURNING id"
-	return r.db.QueryRow(query, user.Name).Scan(&user.ID)
-}
-
-func (r *PostgresUserRepository) UpdateUser(user *User) error {
-	query := "UPDATE users SET name = $1 WHERE id = $2"
-	return r.db.QueryRow(query, user.Name).Scan(&user.ID)
+	query := "INSERT INTO users(telegram_id) VALUES($1) RETURNING id"
+	return r.db.QueryRow(query, user.TelegramId).Scan(&user.ID)
 }

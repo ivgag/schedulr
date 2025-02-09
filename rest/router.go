@@ -4,12 +4,12 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/ivgag/schedulr/storage"
+	"github.com/ivgag/schedulr/service"
 
 	"github.com/gin-gonic/gin"
 )
 
-func NewRouter(userRepo storage.UserRepository) *gin.Engine {
+func NewRouter(userService *service.UserService) *gin.Engine {
 	router := gin.Default()
 
 	router.GET("/users/:id", func(c *gin.Context) {
@@ -19,7 +19,7 @@ func NewRouter(userRepo storage.UserRepository) *gin.Engine {
 			return
 		}
 
-		user, err := userRepo.GetUserByID(id)
+		user, err := userService.GetUserByID(id)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
