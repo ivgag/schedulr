@@ -2,10 +2,12 @@ package tgbot
 
 import (
 	"context"
+	"fmt"
 	"os"
 
 	"github.com/go-telegram/bot"
 	"github.com/go-telegram/bot/models"
+	"github.com/ivgag/schedulr/ai"
 	"github.com/ivgag/schedulr/service"
 	"github.com/ivgag/schedulr/storage"
 )
@@ -74,17 +76,29 @@ func (b *Bot) registerHandler(ctx context.Context, botAPI *bot.Bot, update *mode
 			ChatID: update.Message.Chat.ID,
 			Text:   err.Error(),
 		})
+	} else {
+		botAPI.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID: update.Message.Chat.ID,
+			Text:   "Registered",
+		})
 	}
-
-	botAPI.SendMessage(ctx, &bot.SendMessageParams{
-		ChatID: update.Message.Chat.ID,
-		Text:   "Registered",
-	})
 }
 
 func (b *Bot) defaultHandler(ctx context.Context, botAPI *bot.Bot, update *models.Update) {
-	botAPI.SendMessage(ctx, &bot.SendMessageParams{
-		ChatID: update.Message.Chat.ID,
-		Text:   "Say /hello",
+	events, err := b.eventService.CreateEventsFromUserMessage(ai.UserMessage{
+		Text:    update.Message.Text,
+		Caption: update.Message.Caption,
 	})
+
+	if err != nil {
+		botAPI.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID: update.Message.Chat.ID,
+			Text:   err.Error(),
+		})
+	} else {
+		botAPI.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID: update.Message.Chat.ID,
+			Text:   "Events created: " + fmt.Sprintf("%v", events),
+		})
+	}
 }

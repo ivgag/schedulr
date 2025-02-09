@@ -36,8 +36,7 @@ func (o *OpenAI) GetEvents(message *UserMessage) ([]Event, error) {
 
 						The output structure is:
 
-						{
-						"events": [
+						[
 							{
 							"title": "Event Title",
 							"description": "A brief description of the event",
@@ -51,7 +50,6 @@ func (o *OpenAI) GetEvents(message *UserMessage) ([]Event, error) {
 							"eventType": "announcement"
 							}
 						]
-						}
 						`,
 				},
 				{
