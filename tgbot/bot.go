@@ -48,6 +48,7 @@ func (b *Bot) Start() error {
 
 	b.chatBot.RegisterHandler(bot.HandlerTypeMessageText, "/help", bot.MatchTypeExact, b.helpHandler)
 	b.chatBot.RegisterHandler(bot.HandlerTypeMessageText, "/register", bot.MatchTypeExact, b.registerHandler)
+	b.chatBot.RegisterHandler(bot.HandlerTypeMessageText, "/connectGoogleCalendar", bot.MatchTypeExact, b.connectGoogleCalendarHandler)
 
 	b.chatBot.Start(b.ctx)
 
@@ -82,6 +83,22 @@ func (b *Bot) registerHandler(ctx context.Context, botAPI *bot.Bot, update *mode
 			Text:   "Registered",
 		})
 	}
+}
+
+func (b *Bot) connectGoogleCalendarHandler(ctx context.Context, botAPI *bot.Bot, update *models.Update) {
+	user, err := b.userService.GetUserByTelegramID(update.Message.Chat.ID)
+	if err != nil {
+		botAPI.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID: update.Message.Chat.ID,
+			Text:   err.Error(),
+		})
+		return
+	}
+
+	botAPI.SendMessage(ctx, &bot.SendMessageParams{
+		ChatID: update.Message.Chat.ID,
+		Text:   "Connect your Google Calendar: " + b.userService.GetGoogleConnectionUrl(user.ID),
+	})
 }
 
 func (b *Bot) defaultHandler(ctx context.Context, botAPI *bot.Bot, update *models.Update) {

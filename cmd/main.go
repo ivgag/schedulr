@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/ivgag/schedulr/ai"
+	"github.com/ivgag/schedulr/google"
 	"github.com/ivgag/schedulr/rest"
 	"github.com/ivgag/schedulr/service"
 	"github.com/ivgag/schedulr/storage"
@@ -34,13 +35,23 @@ func main() {
 	}
 
 	userRepo := storage.NewPostgresUserRepository(db)
+	connectedAccountRepo := storage.NewPostgresConnectedAccountRepository(db)
 
 	aiClient, err := ai.NewOpenAI()
 	if err != nil {
 		panic(err)
 	}
 
-	userService := service.NewUserService(userRepo)
+	googleClient, err := google.NewGoogleClient()
+	if err != nil {
+		panic(err)
+	}
+
+	userService := service.NewUserService(
+		googleClient,
+		userRepo,
+		connectedAccountRepo,
+	)
 	eventService := service.NewEventService(aiClient)
 
 	// Initialize the Telegram bot with the global context.

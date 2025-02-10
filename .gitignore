@@ -45,7 +45,7 @@ go.work
 .ionide
 
 # Secrets
-.secrets
+.secrets.sh
 google/credentials.json
 
 # End of https://www.toptal.com/developers/gitignore/api/go,visualstudiocode
