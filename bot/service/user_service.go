@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"github.com/gofrs/uuid"
+	"github.com/ivgag/schedulr/domain"
 	"github.com/ivgag/schedulr/google"
 	"github.com/ivgag/schedulr/storage"
 )
@@ -48,7 +49,7 @@ func (s *UserService) GetOAuth2Url(userID int) string {
 
 	stateTokens[state.String()] = userID
 
-	return s.gClient.GetCalendarConnectionUrl(state.String())
+	return s.gClient.GetOAuth2Url(state.String())
 }
 
 func (s *UserService) ConnectGoogleAccount(state string, code string) error {
@@ -65,12 +66,29 @@ func (s *UserService) ConnectGoogleAccount(state string, code string) error {
 	}
 
 	err = s.linkedAccountRepository.Create(&storage.LinkedAccount{
-		UserID:         userID,
-		Provider:       "google",
-		AccessToken:    token.AccessToken,
-		RefreshToken:   token.RefreshToken,
-		TokenExpiresAt: token.Expiry,
+		UserID:       userID,
+		Provider:     "google",
+		AccessToken:  token.AccessToken,
+		RefreshToken: token.RefreshToken,
+		Expiry:       token.Expiry,
 	})
 
 	return err
+}
+
+func (s *UserService) GetGoogleAccount(userID int) (storage.LinkedAccount, error) {
+	return s.linkedAccountRepository.GetByUserIDAndProvider(userID, "google")
+}
+
+func (s *UserService) UpdateGoogleAccessToken(userID int, token domain.Token) error {
+	account, err := s.linkedAccountRepository.GetByUserIDAndProvider(userID, "google")
+	if err != nil {
+		return err
+	}
+
+	account.AccessToken = token.AccessToken
+	account.RefreshToken = token.RefreshToken
+	account.Expiry = token.Expiry
+
+	return s.linkedAccountRepository.Update(&account)
 }

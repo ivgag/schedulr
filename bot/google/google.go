@@ -2,11 +2,14 @@ package google
 
 import (
 	"context"
+	"fmt"
 
+	"github.com/ivgag/schedulr/domain"
 	"github.com/ivgag/schedulr/utils"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/calendar/v3"
+	"google.golang.org/api/option"
 )
 
 func NewGoogleClient() (GoogleClient, error) {
@@ -42,7 +45,7 @@ type GoogleClient struct {
 	oauth2Config *oauth2.Config
 }
 
-func (c *GoogleClient) GetCalendarConnectionUrl(oauthStateString string) string {
+func (c *GoogleClient) GetOAuth2Url(oauthStateString string) string {
 	return c.oauth2Config.AuthCodeURL(
 		oauthStateString,
 		oauth2.AccessTypeOffline,
@@ -50,6 +53,76 @@ func (c *GoogleClient) GetCalendarConnectionUrl(oauthStateString string) string 
 	)
 }
 
-func (c *GoogleClient) ExchangeCodeForToken(code string) (*oauth2.Token, error) {
-	return c.oauth2Config.Exchange(context.Background(), code)
+func (c *GoogleClient) ExchangeCodeForToken(code string) (*domain.Token, error) {
+	gToken, err := c.oauth2Config.Exchange(context.Background(), code)
+	if err != nil {
+		return nil, err
+	}
+
+	return &domain.Token{
+		AccessToken:  gToken.AccessToken,
+		RefreshToken: gToken.RefreshToken,
+		Expiry:       gToken.Expiry,
+	}, nil
+}
+
+func (c *GoogleClient) CreateEvent(
+	token domain.Token,
+	event domain.Event,
+) (*domain.Token, error) {
+	ctx := context.Background()
+
+	oauth2Token := &oauth2.Token{
+		AccessToken:  token.AccessToken,
+		RefreshToken: token.RefreshToken,
+		Expiry:       token.Expiry,
+		TokenType:    "Bearer",
+	}
+
+	// Create an HTTP client using the obtained token.
+	client := c.oauth2Config.Client(ctx, oauth2Token)
+
+	// Create a new Calendar service.
+	srv, err := calendar.NewService(ctx, option.WithHTTPClient(client))
+	if err != nil {
+		return nil, err
+	}
+
+	// Assuming you already have a Calendar service instance (srv).
+	cal, err := srv.Calendars.Get("primary").Do()
+	if err != nil {
+		return nil, err // handle error appropriately
+	}
+
+	fmt.Printf("User's default time zone: %s\n", cal.TimeZone)
+
+	// Define event details.
+	calEvent := &calendar.Event{
+		Summary:     event.Title,
+		Location:    event.Location,
+		Description: event.Description,
+		Start: &calendar.EventDateTime{
+			DateTime: event.Start.DateTime,
+			TimeZone: cal.TimeZone,
+		},
+		End: &calendar.EventDateTime{
+			DateTime: event.End.DateTime,
+			TimeZone: cal.TimeZone,
+		},
+	}
+
+	// Insert the event into the user's primary calendar.
+	createdEvent, err := srv.Events.Insert("primary", calEvent).Do()
+	if err != nil {
+		return nil, err
+	}
+
+	fmt.Printf("Event created: %s\n", createdEvent.Id)
+
+	// Return the token (if you need it for further requests).
+	return &domain.Token{
+		AccessToken:  token.AccessToken,
+		RefreshToken: token.RefreshToken,
+		Expiry:       token.Expiry,
+	}, nil
 }

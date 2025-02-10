@@ -1,4 +1,3 @@
-// storage/user.go
 package storage
 
 type User struct {

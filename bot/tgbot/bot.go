@@ -7,7 +7,7 @@ import (
 
 	"github.com/go-telegram/bot"
 	"github.com/go-telegram/bot/models"
-	"github.com/ivgag/schedulr/ai"
+	"github.com/ivgag/schedulr/domain"
 	"github.com/ivgag/schedulr/service"
 	"github.com/ivgag/schedulr/storage"
 )
@@ -94,10 +94,12 @@ func (b *Bot) linkGoogleAccountHandler(ctx context.Context, botAPI *bot.Bot, upd
 }
 
 func (b *Bot) defaultHandler(ctx context.Context, botAPI *bot.Bot, update *models.Update) {
-	events, err := b.eventService.CreateEventsFromUserMessage(ai.UserMessage{
-		Text:    update.Message.Text,
-		Caption: update.Message.Caption,
-	})
+	events, err := b.eventService.CreateEventsFromUserMessage(
+		update.Message.Chat.ID,
+		domain.UserMessage{
+			Text:    update.Message.Text,
+			Caption: update.Message.Caption,
+		})
 
 	if err != nil {
 		botAPI.SendMessage(ctx, &bot.SendMessageParams{

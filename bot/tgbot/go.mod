@@ -2,7 +2,13 @@ module github.com/ivgag/schedulr/tgbot
 
 go 1.23.1
 
+require	github.com/ivgag/schedulr/ai v0.0.0 // indirect
+
 replace github.com/ivgag/schedulr/ai => ../ai
+
+require github.com/ivgag/schedulr/domain v0.0.0
+
+replace github.com/ivgag/schedulr/domain => ../domain
 
 require github.com/ivgag/schedulr/storage v0.0.0
 
@@ -36,7 +42,6 @@ require (
 	github.com/googleapis/gax-go/v2 v2.14.1 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
-	github.com/ivgag/schedulr/ai v0.0.0
 	github.com/lib/pq v1.10.9 // indirect
 	github.com/sashabaranov/go-openai v1.37.0 // indirect
 	go.opentelemetry.io/auto/sdk v1.1.0 // indirect

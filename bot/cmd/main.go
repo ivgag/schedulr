@@ -57,7 +57,9 @@ func main() {
 		userRepo,
 		linkedAccountRepo,
 	)
-	eventService := service.NewEventService(aiClient)
+	calendarService := service.NewCalendarService(googleClient, *userService)
+
+	eventService := service.NewEventService(aiClient, *userService, *calendarService)
 
 	// Initialize the Telegram bot with the global context.
 	bot, err := tgbot.NewBot(ctx, userService, eventService)

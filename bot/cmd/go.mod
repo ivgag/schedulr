@@ -6,6 +6,10 @@ require github.com/ivgag/schedulr/ai v0.0.0
 
 replace github.com/ivgag/schedulr/ai => ../ai
 
+require github.com/ivgag/schedulr/domain v0.0.0 // indirect
+
+replace github.com/ivgag/schedulr/domain => ../domain
+
 require github.com/ivgag/schedulr/google v0.0.0
 
 replace github.com/ivgag/schedulr/google => ../google
