@@ -34,8 +34,13 @@ func main() {
 		panic(err)
 	}
 
-	userRepo := storage.NewPostgresUserRepository(db)
-	connectedAccountRepo := storage.NewPostgresConnectedAccountRepository(db)
+	err = storage.Migrate(db)
+	if err != nil {
+		panic(err)
+	}
+
+	userRepo := storage.NewUserRepository(db)
+	linkedAccountRepo := storage.NewLinkedAccountRepository(db)
 
 	aiClient, err := ai.NewOpenAI()
 	if err != nil {
@@ -50,7 +55,7 @@ func main() {
 	userService := service.NewUserService(
 		googleClient,
 		userRepo,
-		connectedAccountRepo,
+		linkedAccountRepo,
 	)
 	eventService := service.NewEventService(aiClient)
 

@@ -13,31 +13,31 @@ var stateTokens = make(map[string]int)
 func NewUserService(
 	gClient google.GoogleClient,
 	userRepository storage.UserRepository,
-	connectedAccountRepository storage.ConnectedAccountRepository,
+	connectedAccountRepository storage.LinkedAccountRepository,
 ) *UserService {
 	return &UserService{
-		gClient:                    gClient,
-		userRepository:             userRepository,
-		connectedAccountRepository: connectedAccountRepository,
+		gClient:                 gClient,
+		userRepository:          userRepository,
+		linkedAccountRepository: connectedAccountRepository,
 	}
 }
 
 type UserService struct {
-	gClient                    google.GoogleClient
-	userRepository             storage.UserRepository
-	connectedAccountRepository storage.ConnectedAccountRepository
+	gClient                 google.GoogleClient
+	userRepository          storage.UserRepository
+	linkedAccountRepository storage.LinkedAccountRepository
 }
 
 func (s *UserService) GetUserByID(id int) (storage.User, error) {
-	return s.userRepository.GetUserByID(id)
+	return s.userRepository.GetByID(id)
 }
 
 func (s *UserService) GetUserByTelegramID(telegramID int64) (storage.User, error) {
-	return s.userRepository.GetUserByTelegramID(telegramID)
+	return s.userRepository.GetByTelegramID(telegramID)
 }
 
 func (s *UserService) CreateUser(user *storage.User) error {
-	return s.userRepository.CreateUser(user)
+	return s.userRepository.Create(user)
 }
 
 func (s *UserService) GetGoogleConnectionUrl(userID int) string {
@@ -64,7 +64,7 @@ func (s *UserService) ConnectGoogleAccount(state string, code string) error {
 		return err
 	}
 
-	err = s.connectedAccountRepository.CreateConnectedAccount(&storage.ConnectedAccount{
+	err = s.linkedAccountRepository.Create(&storage.LinkedAccount{
 		UserID:         userID,
 		Provider:       "google",
 		AccessToken:    token.AccessToken,

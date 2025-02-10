@@ -26,10 +26,9 @@ require github.com/ivgag/schedulr/rest v0.0.0
 
 replace github.com/ivgag/schedulr/rest => ../rest
 
-require github.com/ivgag/schedulr/utils v0.0.0
+require github.com/ivgag/schedulr/utils v0.0.0 // indirect
 
 replace github.com/ivgag/schedulr/utils => ../utils
-
 
 require (
 	cloud.google.com/go/auth v0.14.1 // indirect
@@ -39,15 +38,20 @@ require (
 	github.com/go-logr/logr v1.4.2 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/gofrs/uuid v4.4.0+incompatible // indirect
+	github.com/golang-migrate/migrate/v4 v4.18.2 // indirect
 	github.com/google/s2a-go v0.1.9 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.3.4 // indirect
 	github.com/googleapis/gax-go/v2 v2.14.1 // indirect
+	github.com/hashicorp/errwrap v1.1.0 // indirect
+	github.com/hashicorp/go-multierror v1.1.1 // indirect
+	github.com/lib/pq v1.10.9 // indirect
 	go.opentelemetry.io/auto/sdk v1.1.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.58.0 // indirect
 	go.opentelemetry.io/otel v1.34.0 // indirect
 	go.opentelemetry.io/otel/metric v1.34.0 // indirect
 	go.opentelemetry.io/otel/trace v1.34.0 // indirect
+	go.uber.org/atomic v1.7.0 // indirect
 	golang.org/x/oauth2 v0.26.0 // indirect
 	google.golang.org/api v0.220.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250127172529-29210b9bc287 // indirect
