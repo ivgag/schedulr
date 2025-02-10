@@ -46,9 +46,8 @@ func (b *Bot) Start() error {
 	}
 	b.chatBot = chatBot
 
-	b.chatBot.RegisterHandler(bot.HandlerTypeMessageText, "/help", bot.MatchTypeExact, b.helpHandler)
-	b.chatBot.RegisterHandler(bot.HandlerTypeMessageText, "/register", bot.MatchTypeExact, b.registerHandler)
-	b.chatBot.RegisterHandler(bot.HandlerTypeMessageText, "/connectGoogleCalendar", bot.MatchTypeExact, b.connectGoogleCalendarHandler)
+	b.chatBot.RegisterHandler(bot.HandlerTypeMessageText, "/start", bot.MatchTypeExact, b.startHandler)
+	b.chatBot.RegisterHandler(bot.HandlerTypeMessageText, "/linkgoogle", bot.MatchTypeExact, b.linkGoogleAccountHandler)
 
 	b.chatBot.Start(b.ctx)
 
@@ -60,16 +59,9 @@ func (b *Bot) Stop() {
 	b.chatBot.Close(b.ctx)
 }
 
-func (b *Bot) helpHandler(ctx context.Context, botAPI *bot.Bot, update *models.Update) {
-	botAPI.SendMessage(ctx, &bot.SendMessageParams{
-		ChatID: update.Message.Chat.ID,
-		Text:   "Help",
-	})
-}
-
-func (b *Bot) registerHandler(ctx context.Context, botAPI *bot.Bot, update *models.Update) {
+func (b *Bot) startHandler(ctx context.Context, botAPI *bot.Bot, update *models.Update) {
 	err := b.userService.CreateUser(&storage.User{
-		TelegramId: update.Message.Chat.ID,
+		TelegramID: update.Message.Chat.ID,
 	})
 
 	if err != nil {
@@ -80,12 +72,12 @@ func (b *Bot) registerHandler(ctx context.Context, botAPI *bot.Bot, update *mode
 	} else {
 		botAPI.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID: update.Message.Chat.ID,
-			Text:   "Registered",
+			Text:   "Link you Calendar: /linkgoogle",
 		})
 	}
 }
 
-func (b *Bot) connectGoogleCalendarHandler(ctx context.Context, botAPI *bot.Bot, update *models.Update) {
+func (b *Bot) linkGoogleAccountHandler(ctx context.Context, botAPI *bot.Bot, update *models.Update) {
 	user, err := b.userService.GetUserByTelegramID(update.Message.Chat.ID)
 	if err != nil {
 		botAPI.SendMessage(ctx, &bot.SendMessageParams{
@@ -97,7 +89,7 @@ func (b *Bot) connectGoogleCalendarHandler(ctx context.Context, botAPI *bot.Bot,
 
 	botAPI.SendMessage(ctx, &bot.SendMessageParams{
 		ChatID: update.Message.Chat.ID,
-		Text:   "Connect your Google Calendar: " + b.userService.GetGoogleConnectionUrl(user.ID),
+		Text:   "Link your Google Calendar: " + b.userService.GetOAuth2Url(user.ID),
 	})
 }
 

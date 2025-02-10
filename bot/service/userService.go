@@ -40,7 +40,7 @@ func (s *UserService) CreateUser(user *storage.User) error {
 	return s.userRepository.Create(user)
 }
 
-func (s *UserService) GetGoogleConnectionUrl(userID int) string {
+func (s *UserService) GetOAuth2Url(userID int) string {
 	state, err := uuid.NewGen().NewV7()
 	if err != nil {
 		panic(err)

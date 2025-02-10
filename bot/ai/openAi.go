@@ -6,6 +6,7 @@ import (
 	"errors"
 	"log"
 	"os"
+	"strings"
 
 	openai "github.com/sashabaranov/go-openai"
 )
@@ -32,7 +33,7 @@ func (o *OpenAI) GetEvents(message *UserMessage) ([]Event, error) {
 						The information might include announcements, tickets, ads, etc.
 						Extract details from the user's input and transform them into JSON to 
 						later create an appointment on a calendar (Google, Microsoft, Yandex, etc.).
-						If you cannot extract details for any event, return an empty string.
+						If you cannot extract details for any event, return an empty json array.
 
 						The output structure is:
 
@@ -64,10 +65,11 @@ func (o *OpenAI) GetEvents(message *UserMessage) ([]Event, error) {
 		return nil, err
 	}
 
-	log.Println("OpenAI response:", resp.Choices[0].Message.Content)
+	responseContent := resp.Choices[0].Message.Content
+	log.Println("OpenAI response:", responseContent)
 
 	var events []Event
-	err = json.Unmarshal([]byte(resp.Choices[0].Message.Content), &events)
+	err = json.Unmarshal([]byte(removeJsonFormattingMarkers(responseContent)), &events)
 	if err != nil {
 		return nil, err
 	}
@@ -84,4 +86,13 @@ func NewOpenAI() (*OpenAI, error) {
 	client := openai.NewClient(openAiToken)
 
 	return &OpenAI{client: client}, nil
+}
+
+func removeJsonFormattingMarkers(text string) string {
+	// Remove formatting markers (` ```json` and trailing triple backticks)
+
+	text = strings.TrimPrefix(text, "```json")
+	text = strings.TrimSuffix(text, "```")
+
+	return text
 }

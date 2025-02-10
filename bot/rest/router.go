@@ -27,7 +27,7 @@ func NewRouter(userService *service.UserService) *gin.Engine {
 		c.JSON(http.StatusOK, user)
 	})
 
-	router.GET("/outh2callback", func(c *gin.Context) {
+	router.GET("/oauth2callback/google", func(c *gin.Context) {
 		code := c.Query("code")
 		state := c.Query("state")
 

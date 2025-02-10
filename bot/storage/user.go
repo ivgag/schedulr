@@ -3,7 +3,7 @@ package storage
 
 type User struct {
 	ID         int
-	TelegramId int64
+	TelegramID int64
 }
 
 type UserRepository interface {
