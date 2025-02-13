@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"log"
+	"fmt"
 	"os"
 	"strings"
 	"time"
@@ -20,7 +20,36 @@ type OpenAI struct {
 }
 
 func (o *OpenAI) GetEvents(message *model.UserMessage) ([]model.Event, error) {
-	// Use the OpenAI API to generate events based on the user message.
+	prompt := fmt.Sprintf(`
+You are a calendar assistant that extracts event details from user input 
+and converts them into JSON for creating calendar events (Google, Microsoft, Yandex, etc.). 
+The input may include announcements, tickets, ads, and similar content.
+
+Tasks:
+ - Extract key event details: title, 
+ 	description (including critical details like price, links, host name, etc.), 
+	start time, end time, location, and event type.
+ - Resolve relative dates using the reference date: today is %s
+ - If an event’s details cannot be fully extracted, ignore that event.
+ - If no event details are found, return an empty JSON array.
+
+Output format:
+
+[
+  {
+    "title": "Event Title",
+    "description": "A brief description including all critical details (price, links, host's name, etc.)",
+    "start": {
+      "dateTime": "YYYY-MM-DD'T'HH:mm:ss"
+    },
+    "end": {
+      "dateTime": "YYYY-MM-DD'T'HH:mm:ss"
+    },
+    "location": "Event Location",
+    "eventType": "announcement"
+  }
+]
+`, time.Now().Format(time.DateTime))
 
 	resp, err := o.client.CreateChatCompletion(
 		context.Background(),
@@ -28,37 +57,8 @@ func (o *OpenAI) GetEvents(message *model.UserMessage) ([]model.Event, error) {
 			Model: openai.GPT3Dot5Turbo,
 			Messages: []openai.ChatCompletionMessage{
 				{
-					Role: openai.ChatMessageRoleSystem,
-					Content: `
-						You are a calendar assistant that extracts event details from user input 
-						and converts them into JSON for creating calendar events (Google, Microsoft, Yandex, etc.). 
-						The input may include announcements, tickets, ads, and similar content.
-
-						Tasks:
-						 - Extract key event details: title, description (including critical details like price, 
-						 	links, host name, etc.), start time, end time, location, and event type.
-						 - Resolve relative dates using the reference date: today is ` + time.Now().String() +
-						`
-						 - If an event’s details cannot be fully extracted, ignore that event.
-						 - If no event details are found, return an empty JSON array.
-
-						Output format:
-
-						[
-						{
-							"title": "Event Title",
-							"description": "A brief description including all critical details (price, links, host's name, etc.)",
-							"start": {
-							"dateTime": "YYYY-MM-DD'T'HH:mm:ss"
-							},
-							"end": {
-							"dateTime": "YYYY-MM-DD'T'HH:mm:ss"
-							},
-							"location": "Event Location",
-							"eventType": "announcement"
-						}
-						]
-						`,
+					Role:    openai.ChatMessageRoleSystem,
+					Content: prompt,
 				},
 				{
 					Role:    openai.ChatMessageRoleUser,
@@ -67,13 +67,11 @@ func (o *OpenAI) GetEvents(message *model.UserMessage) ([]model.Event, error) {
 			},
 		},
 	)
-
 	if err != nil {
 		return nil, err
 	}
 
 	responseContent := resp.Choices[0].Message.Content
-	log.Println("OpenAI response:", responseContent)
 
 	var events []model.Event
 	err = json.Unmarshal([]byte(removeJsonFormattingMarkers(responseContent)), &events)
