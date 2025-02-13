@@ -46,6 +46,5 @@ go.work
 
 # Secrets
 .secrets.sh
-google/credentials.json
 
 # End of https://www.toptal.com/developers/gitignore/api/go,visualstudiocode

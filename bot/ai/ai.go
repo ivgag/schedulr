@@ -1,7 +1,7 @@
 package ai
 
-import "github.com/ivgag/schedulr/domain"
+import "github.com/ivgag/schedulr/model"
 
 type AI interface {
-	GetEvents(message *domain.UserMessage) ([]domain.Event, error)
+	GetEvents(message *model.UserMessage) ([]model.Event, error)
 }

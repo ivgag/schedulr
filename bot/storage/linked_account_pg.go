@@ -3,7 +3,7 @@ package storage
 import (
 	"database/sql"
 
-	"github.com/ivgag/schedulr/domain"
+	"github.com/ivgag/schedulr/model"
 )
 
 func NewLinkedAccountRepository(db *sql.DB) LinkedAccountRepository {
@@ -15,7 +15,7 @@ type PgLinkedAccountRepository struct {
 }
 
 // Create implements ConnectedAccountRepository.
-func (p *PgLinkedAccountRepository) Create(account *LinkedAccount) error {
+func (p *PgLinkedAccountRepository) Create(account LinkedAccount) error {
 	row := p.db.QueryRow(`
 	INSERT INTO linked_accounts(user_id, provider, access_token, refresh_token, expiry) 
 	VALUES($1, $2, $3, $4, $5) 
@@ -31,7 +31,7 @@ func (p *PgLinkedAccountRepository) Create(account *LinkedAccount) error {
 }
 
 // Update implements LinkedAccountRepository.
-func (p *PgLinkedAccountRepository) Update(account *LinkedAccount) error {
+func (p *PgLinkedAccountRepository) Update(account LinkedAccount) error {
 	_, err := p.db.Exec(`
 	UPDATE linked_accounts
 	SET access_token = $1, refresh_token = $2, expiry = $3
@@ -43,7 +43,7 @@ func (p *PgLinkedAccountRepository) Update(account *LinkedAccount) error {
 }
 
 // GetByUserIDAndProvider implements ConnectedAccountRepository.
-func (p *PgLinkedAccountRepository) GetByUserIDAndProvider(userID int, provider domain.Provider) (LinkedAccount, error) {
+func (p *PgLinkedAccountRepository) GetByUserIDAndProvider(userID int, provider model.Provider) (LinkedAccount, error) {
 	var account LinkedAccount
 
 	err := p.db.QueryRow(`
@@ -54,7 +54,7 @@ func (p *PgLinkedAccountRepository) GetByUserIDAndProvider(userID int, provider 
 	).Scan(&account.ID, &account.UserID, &account.Provider, &account.AccessToken, &account.RefreshToken, &account.Expiry)
 
 	if err != nil && err.Error() == noRowsError {
-		return LinkedAccount{}, domain.NotFoundError{Message: "account not found"}
+		return LinkedAccount{}, model.NotFoundError{Message: "account not found"}
 	} else if err != nil {
 		return LinkedAccount{}, err
 	} else {

@@ -3,7 +3,7 @@ package storage
 import (
 	"database/sql"
 
-	"github.com/ivgag/schedulr/domain"
+	"github.com/ivgag/schedulr/model"
 )
 
 type PgUserRepository struct {
@@ -20,7 +20,7 @@ func (r *PgUserRepository) GetByID(id int) (User, error) {
 	err := r.db.QueryRow(query, id).Scan(&user.ID, &user.TelegramID)
 
 	if err != nil && err.Error() == noRowsError {
-		return User{}, domain.NotFoundError{Message: "user not found"}
+		return User{}, model.NotFoundError{Message: "user not found"}
 	} else if err != nil {
 		return User{}, err
 	} else {
@@ -35,7 +35,7 @@ func (r *PgUserRepository) GetByTelegramID(telegramID int64) (User, error) {
 	err := r.db.QueryRow(query, telegramID).Scan(&user.ID, &user.TelegramID)
 
 	if err != nil && err.Error() == noRowsError {
-		return User{}, domain.NotFoundError{Message: "user not found"}
+		return User{}, model.NotFoundError{Message: "user not found"}
 	} else if err != nil {
 		return User{}, err
 	} else {

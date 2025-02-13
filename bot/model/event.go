@@ -1,4 +1,4 @@
-package domain
+package model
 
 type Event struct {
 	Title       string    `json:"title"`
@@ -7,6 +7,7 @@ type Event struct {
 	End         TimeStamp `json:"end"`
 	Location    string    `json:"location"`
 	EventType   string    `json:"eventType"`
+	Link        string    `json:"link"`
 }
 
 type TimeStamp struct {

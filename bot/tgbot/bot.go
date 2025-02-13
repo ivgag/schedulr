@@ -7,7 +7,7 @@ import (
 
 	"github.com/go-telegram/bot"
 	"github.com/go-telegram/bot/models"
-	"github.com/ivgag/schedulr/domain"
+	"github.com/ivgag/schedulr/model"
 	"github.com/ivgag/schedulr/service"
 	"github.com/ivgag/schedulr/storage"
 )
@@ -61,7 +61,7 @@ func (b *Bot) Stop() {
 
 func (b *Bot) startHandler(ctx context.Context, botAPI *bot.Bot, update *models.Update) {
 	err := b.userService.CreateUser(&storage.User{
-		TelegramID: update.ChatMember.Chat.ID,
+		TelegramID: update.Message.Chat.ID,
 	})
 
 	if err != nil {
@@ -78,7 +78,7 @@ func (b *Bot) startHandler(ctx context.Context, botAPI *bot.Bot, update *models.
 }
 
 func (b *Bot) linkGoogleAccountHandler(ctx context.Context, botAPI *bot.Bot, update *models.Update) {
-	link, err := b.userService.GetOAuth2Url(update.ChatMember.Chat.ID, domain.ProviderGoogle)
+	link, err := b.userService.GetOAuth2Url(update.Message.Chat.ID, model.ProviderGoogle)
 	if err != nil {
 		botAPI.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID: update.Message.Chat.ID,
@@ -96,7 +96,7 @@ func (b *Bot) linkGoogleAccountHandler(ctx context.Context, botAPI *bot.Bot, upd
 func (b *Bot) defaultHandler(ctx context.Context, botAPI *bot.Bot, update *models.Update) {
 	events, err := b.eventService.CreateEventsFromUserMessage(
 		update.Message.Chat.ID,
-		domain.UserMessage{
+		model.UserMessage{
 			Text:    update.Message.Text,
 			Caption: update.Message.Caption,
 		})
@@ -107,9 +107,31 @@ func (b *Bot) defaultHandler(ctx context.Context, botAPI *bot.Bot, update *model
 			Text:   err.Error(),
 		})
 	} else {
-		botAPI.SendMessage(ctx, &bot.SendMessageParams{
-			ChatID: update.Message.Chat.ID,
-			Text:   "Events created: " + fmt.Sprintf("%v", events),
-		})
+		for _, event := range events {
+			botAPI.SendMessage(ctx, &bot.SendMessageParams{
+				ChatID:    update.Message.Chat.ID,
+				Text:      formatEventForTelegram(event),
+				ParseMode: "Markdown",
+			})
+		}
 	}
+}
+
+// FormatEventForTelegram returns a user-friendly string message representing the event.
+func formatEventForTelegram(e model.Event) string {
+	// Build the message with basic markdown formatting.
+	message := fmt.Sprintf("*%s*\n", e.Title)
+	if e.Description != "" {
+		message += fmt.Sprintf("%s\n", e.Description)
+	}
+	// Format time info. Assuming DateTime is already in a readable format.
+	message += fmt.Sprintf("*When:* %s - %s (%s)\n", e.Start.DateTime, e.End.DateTime, e.Start.TimeZone)
+	if e.Location != "" {
+		message += fmt.Sprintf("*Where:* %s\n", e.Location)
+	}
+	if e.Link != "" {
+		message += fmt.Sprintf("[More details](%s)\n", e.Link)
+	}
+
+	return message
 }

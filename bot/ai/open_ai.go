@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ivgag/schedulr/domain"
+	"github.com/ivgag/schedulr/model"
 	openai "github.com/sashabaranov/go-openai"
 )
 
@@ -19,7 +19,7 @@ type OpenAI struct {
 	client *openai.Client
 }
 
-func (o *OpenAI) GetEvents(message *domain.UserMessage) ([]domain.Event, error) {
+func (o *OpenAI) GetEvents(message *model.UserMessage) ([]model.Event, error) {
 	// Use the OpenAI API to generate events based on the user message.
 
 	resp, err := o.client.CreateChatCompletion(
@@ -75,7 +75,7 @@ func (o *OpenAI) GetEvents(message *domain.UserMessage) ([]domain.Event, error) 
 	responseContent := resp.Choices[0].Message.Content
 	log.Println("OpenAI response:", responseContent)
 
-	var events []domain.Event
+	var events []model.Event
 	err = json.Unmarshal([]byte(removeJsonFormattingMarkers(responseContent)), &events)
 	if err != nil {
 		return nil, err

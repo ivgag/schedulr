@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/ivgag/schedulr/ai"
-	"github.com/ivgag/schedulr/google"
+	"github.com/ivgag/schedulr/model"
 	"github.com/ivgag/schedulr/rest"
 	"github.com/ivgag/schedulr/service"
 	"github.com/ivgag/schedulr/storage"
@@ -47,19 +47,26 @@ func main() {
 		panic(err)
 	}
 
-	googleClient, err := google.NewGoogleClient()
+	googleTokenService, err := service.NewGoogleTokenService(linkedAccountRepo)
 	if err != nil {
 		panic(err)
 	}
 
-	userService := service.NewUserService(
-		googleClient,
-		userRepo,
-		linkedAccountRepo,
-	)
-	calendarService := service.NewCalendarService(googleClient, *userService)
+	tokenServices := map[model.Provider]service.TokenService{
+		model.ProviderGoogle: googleTokenService,
+	}
 
-	eventService := service.NewEventService(aiClient, *userService, *calendarService)
+	userService := service.NewUserService(
+		userRepo,
+		tokenServices,
+	)
+
+	googleCalendarService := service.NewGoogleCalendarService(googleTokenService)
+	calendarServices := map[model.Provider]service.CalendarService{
+		model.ProviderGoogle: googleCalendarService,
+	}
+
+	eventService := service.NewEventService(aiClient, *userService, calendarServices)
 
 	// Initialize the Telegram bot with the global context.
 	bot, err := tgbot.NewBot(ctx, userService, eventService)

@@ -5,7 +5,7 @@ go 1.23.1
 replace (
 
 	github.com/ivgag/schedulr/ai => ../ai
-	github.com/ivgag/schedulr/domain => ../domain
+	github.com/ivgag/schedulr/model => ../model
 	github.com/ivgag/schedulr/google => ../google
 	github.com/ivgag/schedulr/service => ../service
 	github.com/ivgag/schedulr/storage => ../storage
@@ -42,7 +42,7 @@ require (
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
 	github.com/ivgag/schedulr/ai v0.0.0 //indirect
-	github.com/ivgag/schedulr/domain v0.0.0 // indirect
+	github.com/ivgag/schedulr/model v0.0.0 // indirect
 	github.com/ivgag/schedulr/google v0.0.0 // indirect
 	github.com/ivgag/schedulr/storage v0.0.0 // indirect
 	github.com/ivgag/schedulr/utils v0.0.0 // indirect

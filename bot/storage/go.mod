@@ -4,7 +4,7 @@ go 1.23.1
 
 require (
 	github.com/golang-migrate/migrate/v4 v4.18.2
-	github.com/ivgag/schedulr/domain v0.0.0
+	github.com/ivgag/schedulr/model v0.0.0
 	github.com/ivgag/schedulr/utils v0.0.0
 	github.com/lib/pq v1.10.9
 )
@@ -16,6 +16,6 @@ require (
 )
 
 replace (
-	github.com/ivgag/schedulr/domain => ../domain
+	github.com/ivgag/schedulr/model => ../model
 	github.com/ivgag/schedulr/utils => ../utils
 )

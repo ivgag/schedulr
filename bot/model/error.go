@@ -1,4 +1,4 @@
-package domain
+package model
 
 type error interface {
 	Error() string
