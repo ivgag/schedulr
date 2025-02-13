@@ -3,10 +3,8 @@ module github.com/ivgag/schedulr/rest
 go 1.23.1
 
 replace (
-
 	github.com/ivgag/schedulr/ai => ../ai
 	github.com/ivgag/schedulr/model => ../model
-	github.com/ivgag/schedulr/google => ../google
 	github.com/ivgag/schedulr/service => ../service
 	github.com/ivgag/schedulr/storage => ../storage
 	github.com/ivgag/schedulr/utils => ../utils
@@ -14,6 +12,7 @@ replace (
 
 require (
 	github.com/gin-gonic/gin v1.10.0
+	github.com/ivgag/schedulr/model v0.0.0
 	github.com/ivgag/schedulr/service v0.0.0
 )
 
@@ -34,22 +33,16 @@ require (
 	github.com/go-playground/validator/v10 v10.24.0 // indirect
 	github.com/goccy/go-json v0.10.5 // indirect
 	github.com/gofrs/uuid v4.4.0+incompatible // indirect
-	github.com/golang-migrate/migrate/v4 v4.18.2 // indirect
 	github.com/google/s2a-go v0.1.9 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.3.4 // indirect
 	github.com/googleapis/gax-go/v2 v2.14.1 // indirect
-	github.com/hashicorp/errwrap v1.1.0 // indirect
-	github.com/hashicorp/go-multierror v1.1.1 // indirect
 	github.com/ivgag/schedulr/ai v0.0.0 //indirect
-	github.com/ivgag/schedulr/model v0.0.0 // indirect
-	github.com/ivgag/schedulr/google v0.0.0 // indirect
 	github.com/ivgag/schedulr/storage v0.0.0 // indirect
 	github.com/ivgag/schedulr/utils v0.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.9 // indirect
 	github.com/leodido/go-urn v1.4.0 // indirect
-	github.com/lib/pq v1.10.9 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
@@ -62,7 +55,6 @@ require (
 	go.opentelemetry.io/otel v1.34.0 // indirect
 	go.opentelemetry.io/otel/metric v1.34.0 // indirect
 	go.opentelemetry.io/otel/trace v1.34.0 // indirect
-	go.uber.org/atomic v1.7.0 // indirect
 	golang.org/x/arch v0.14.0 // indirect
 	golang.org/x/crypto v0.33.0 // indirect
 	golang.org/x/net v0.34.0 // indirect

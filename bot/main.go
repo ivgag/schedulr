@@ -15,6 +15,7 @@ import (
 	"github.com/ivgag/schedulr/service"
 	"github.com/ivgag/schedulr/storage"
 	"github.com/ivgag/schedulr/tgbot"
+	"github.com/ivgag/schedulr/utils"
 	_ "github.com/jackc/pgx/v4/stdlib"
 )
 
@@ -23,7 +24,7 @@ func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()
 
-	connStr := "host=localhost port=5432 user=postgres password=postgres dbname=schedulr sslmode=disable"
+	connStr := utils.GetenvOrPanic("DATABASE_URL")
 	db, err := sql.Open("pgx", connStr)
 	if err != nil {
 		panic(err)
@@ -34,7 +35,6 @@ func main() {
 		panic(err)
 	}
 
-	err = storage.Migrate(db)
 	if err != nil {
 		panic(err)
 	}
