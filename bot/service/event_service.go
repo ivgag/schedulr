@@ -35,7 +35,7 @@ func (s *EventService) CreateEventsFromUserMessage(telegramID int64, message dom
 	}
 
 	for i := range events {
-		err = s.calendarService.CreateEvent(user.ID, events[i])
+		err = s.calendarService.CreateEvent(user.ID, domain.ProviderGoogle, events[i])
 		if err != nil {
 			return nil, err
 		}

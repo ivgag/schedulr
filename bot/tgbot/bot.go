@@ -61,7 +61,7 @@ func (b *Bot) Stop() {
 
 func (b *Bot) startHandler(ctx context.Context, botAPI *bot.Bot, update *models.Update) {
 	err := b.userService.CreateUser(&storage.User{
-		TelegramID: update.Message.Chat.ID,
+		TelegramID: update.ChatMember.Chat.ID,
 	})
 
 	if err != nil {
@@ -78,19 +78,19 @@ func (b *Bot) startHandler(ctx context.Context, botAPI *bot.Bot, update *models.
 }
 
 func (b *Bot) linkGoogleAccountHandler(ctx context.Context, botAPI *bot.Bot, update *models.Update) {
-	user, err := b.userService.GetUserByTelegramID(update.Message.Chat.ID)
+	link, err := b.userService.GetOAuth2Url(update.ChatMember.Chat.ID, domain.ProviderGoogle)
 	if err != nil {
 		botAPI.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID: update.Message.Chat.ID,
 			Text:   err.Error(),
 		})
 		return
+	} else {
+		botAPI.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID: update.Message.Chat.ID,
+			Text:   "Link your Google Calendar: " + link,
+		})
 	}
-
-	botAPI.SendMessage(ctx, &bot.SendMessageParams{
-		ChatID: update.Message.Chat.ID,
-		Text:   "Link your Google Calendar: " + b.userService.GetOAuth2Url(user.ID),
-	})
 }
 
 func (b *Bot) defaultHandler(ctx context.Context, botAPI *bot.Bot, update *models.Update) {

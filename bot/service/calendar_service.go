@@ -20,8 +20,8 @@ type CalendarService struct {
 	userService UserService
 }
 
-func (s *CalendarService) CreateEvent(userID int, event domain.Event) error {
-	linkedAccount, err := s.userService.GetGoogleAccount(userID)
+func (s *CalendarService) CreateEvent(userID int, provider domain.Provider, event domain.Event) error {
+	linkedAccount, err := s.userService.GetLinkedAccount(userID, provider)
 	if err != nil {
 		return err
 	}
@@ -39,7 +39,7 @@ func (s *CalendarService) CreateEvent(userID int, event domain.Event) error {
 	}
 
 	if token != *refreshedToken {
-		s.userService.UpdateGoogleAccessToken(userID, *refreshedToken)
+		s.userService.UpdateLinkedAccountAccessToken(userID, provider, *refreshedToken)
 	}
 
 	return err

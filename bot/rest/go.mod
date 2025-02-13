@@ -2,23 +2,20 @@ module github.com/ivgag/schedulr/rest
 
 go 1.23.1
 
-require github.com/ivgag/schedulr/ai v0.0.0 //indirect
+replace (
 
-replace github.com/ivgag/schedulr/ai => ../ai
+	github.com/ivgag/schedulr/ai => ../ai
+	github.com/ivgag/schedulr/domain => ../domain
+	github.com/ivgag/schedulr/google => ../google
+	github.com/ivgag/schedulr/service => ../service
+	github.com/ivgag/schedulr/storage => ../storage
+	github.com/ivgag/schedulr/utils => ../utils
+)
 
-require github.com/ivgag/schedulr/google v0.0.0 // indirect
-
-replace github.com/ivgag/schedulr/google => ../google
-
-require github.com/ivgag/schedulr/storage v0.0.0 // indirect
-
-replace github.com/ivgag/schedulr/storage => ../storage
-
-require github.com/ivgag/schedulr/service v0.0.0
-
-replace github.com/ivgag/schedulr/service => ../service
-
-replace github.com/ivgag/schedulr/utils => ../utils
+require (
+	github.com/gin-gonic/gin v1.10.0
+	github.com/ivgag/schedulr/service v0.0.0
+)
 
 require (
 	cloud.google.com/go/auth v0.14.1 // indirect
@@ -30,7 +27,6 @@ require (
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.8 // indirect
 	github.com/gin-contrib/sse v1.0.0 // indirect
-	github.com/gin-gonic/gin v1.10.0
 	github.com/go-logr/logr v1.4.2 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-playground/locales v0.14.1 // indirect
@@ -45,6 +41,10 @@ require (
 	github.com/googleapis/gax-go/v2 v2.14.1 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
+	github.com/ivgag/schedulr/ai v0.0.0 //indirect
+	github.com/ivgag/schedulr/domain v0.0.0 // indirect
+	github.com/ivgag/schedulr/google v0.0.0 // indirect
+	github.com/ivgag/schedulr/storage v0.0.0 // indirect
 	github.com/ivgag/schedulr/utils v0.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.9 // indirect

@@ -4,14 +4,18 @@ go 1.23.1
 
 require (
 	github.com/golang-migrate/migrate/v4 v4.18.2
+	github.com/ivgag/schedulr/domain v0.0.0
 	github.com/ivgag/schedulr/utils v0.0.0
 	github.com/lib/pq v1.10.9
 )
-
-replace github.com/ivgag/schedulr/utils => ../utils
 
 require (
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
 	go.uber.org/atomic v1.7.0 // indirect
+)
+
+replace (
+	github.com/ivgag/schedulr/domain => ../domain
+	github.com/ivgag/schedulr/utils => ../utils
 )

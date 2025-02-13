@@ -1,11 +1,15 @@
 package storage
 
-import "time"
+import (
+	"time"
+
+	"github.com/ivgag/schedulr/domain"
+)
 
 type LinkedAccount struct {
 	ID           int
 	UserID       int
-	Provider     string
+	Provider     domain.Provider
 	AccessToken  string
 	RefreshToken string
 	Expiry       time.Time
@@ -14,5 +18,5 @@ type LinkedAccount struct {
 type LinkedAccountRepository interface {
 	Create(account *LinkedAccount) error
 	Update(account *LinkedAccount) error
-	GetByUserIDAndProvider(userID int, provider string) (LinkedAccount, error)
+	GetByUserIDAndProvider(userID int, provider domain.Provider) (LinkedAccount, error)
 }

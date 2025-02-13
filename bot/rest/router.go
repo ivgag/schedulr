@@ -31,13 +31,13 @@ func NewRouter(userService *service.UserService) *gin.Engine {
 		code := c.Query("code")
 		state := c.Query("state")
 
-		err := userService.ConnectGoogleAccount(state, code)
+		err := userService.LinkAccount(state, code)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
 
-		c.JSON(http.StatusOK, gin.H{"message": "Account connected successfully"})
+		c.Redirect(http.StatusFound, "https://t.me/schedulr_bot")
 	})
 
 	return router

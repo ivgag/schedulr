@@ -10,6 +10,7 @@ import (
 )
 
 var stateTokens = make(map[string]int)
+var stateProvider = make(map[string]domain.Provider)
 
 func NewUserService(
 	gClient google.GoogleClient,
@@ -41,24 +42,37 @@ func (s *UserService) CreateUser(user *storage.User) error {
 	return s.userRepository.Create(user)
 }
 
-func (s *UserService) GetOAuth2Url(userID int) string {
-	state, err := uuid.NewGen().NewV7()
+func (s *UserService) GetOAuth2Url(telegramID int64, provider domain.Provider) (string, error) {
+	user, err := s.userRepository.GetByTelegramID(telegramID)
 	if err != nil {
-		panic(err)
+		return "", err
+	} else if user.ID == 0 {
+		return "", errors.New("user not found")
 	}
 
-	stateTokens[state.String()] = userID
+	googleAccount, err := s.linkedAccountRepository.GetByUserIDAndProvider(user.ID, provider)
+	if err != nil {
+		return "", err
+	} else if googleAccount.ID != 0 {
+		return "", errors.New(string(provider) + " account already linked")
+	}
 
-	return s.gClient.GetOAuth2Url(state.String())
+	state, err := uuid.NewGen().NewV7()
+	if err != nil {
+		return "", err
+	}
+
+	stateTokens[state.String()] = user.ID
+	stateProvider[state.String()] = provider
+
+	return s.gClient.GetOAuth2Url(state.String()), nil
 }
 
-func (s *UserService) ConnectGoogleAccount(state string, code string) error {
+func (s *UserService) LinkAccount(state string, code string) error {
 	userID, ok := stateTokens[state]
 	if !ok {
 		return errors.New("invalid state token")
 	}
-
-	delete(stateTokens, state)
 
 	token, err := s.gClient.ExchangeCodeForToken(code)
 	if err != nil {
@@ -67,21 +81,28 @@ func (s *UserService) ConnectGoogleAccount(state string, code string) error {
 
 	err = s.linkedAccountRepository.Create(&storage.LinkedAccount{
 		UserID:       userID,
-		Provider:     "google",
+		Provider:     stateProvider[state],
 		AccessToken:  token.AccessToken,
 		RefreshToken: token.RefreshToken,
 		Expiry:       token.Expiry,
 	})
 
+	delete(stateTokens, state)
+	delete(stateProvider, state)
+
 	return err
 }
 
-func (s *UserService) GetGoogleAccount(userID int) (storage.LinkedAccount, error) {
-	return s.linkedAccountRepository.GetByUserIDAndProvider(userID, "google")
+func (s *UserService) GetLinkedAccount(userID int, provider domain.Provider) (storage.LinkedAccount, error) {
+	return s.linkedAccountRepository.GetByUserIDAndProvider(userID, provider)
 }
 
-func (s *UserService) UpdateGoogleAccessToken(userID int, token domain.Token) error {
-	account, err := s.linkedAccountRepository.GetByUserIDAndProvider(userID, "google")
+func (s *UserService) UpdateLinkedAccountAccessToken(
+	userID int,
+	provider domain.Provider,
+	token domain.Token,
+) error {
+	account, err := s.linkedAccountRepository.GetByUserIDAndProvider(userID, provider)
 	if err != nil {
 		return err
 	}

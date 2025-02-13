@@ -2,37 +2,16 @@ module github.com/ivgag/schedulr/cmd
 
 go 1.23.1
 
-require github.com/ivgag/schedulr/ai v0.0.0
-
-replace github.com/ivgag/schedulr/ai => ../ai
-
-require github.com/ivgag/schedulr/domain v0.0.0 // indirect
-
-replace github.com/ivgag/schedulr/domain => ../domain
-
-require github.com/ivgag/schedulr/google v0.0.0
-
-replace github.com/ivgag/schedulr/google => ../google
-
-require github.com/ivgag/schedulr/tgbot v0.0.0
-
-replace github.com/ivgag/schedulr/tgbot => ../tgbot
-
-require github.com/ivgag/schedulr/storage v0.0.0
-
-replace github.com/ivgag/schedulr/storage => ../storage
-
-require github.com/ivgag/schedulr/service v0.0.0
-
-replace github.com/ivgag/schedulr/service => ../service
-
-require github.com/ivgag/schedulr/rest v0.0.0
-
-replace github.com/ivgag/schedulr/rest => ../rest
-
-require github.com/ivgag/schedulr/utils v0.0.0 // indirect
-
-replace github.com/ivgag/schedulr/utils => ../utils
+replace (
+	github.com/ivgag/schedulr/ai => ../ai
+	github.com/ivgag/schedulr/domain => ../domain
+	github.com/ivgag/schedulr/google => ../google
+	github.com/ivgag/schedulr/rest => ../rest
+	github.com/ivgag/schedulr/service => ../service
+	github.com/ivgag/schedulr/storage => ../storage
+	github.com/ivgag/schedulr/tgbot => ../tgbot
+	github.com/ivgag/schedulr/utils => ../utils
+)
 
 require (
 	cloud.google.com/go/auth v0.14.1 // indirect
@@ -49,6 +28,14 @@ require (
 	github.com/googleapis/gax-go/v2 v2.14.1 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
+	github.com/ivgag/schedulr/ai v0.0.0
+	github.com/ivgag/schedulr/domain v0.0.0 // indirect
+	github.com/ivgag/schedulr/google v0.0.0
+	github.com/ivgag/schedulr/rest v0.0.0
+	github.com/ivgag/schedulr/service v0.0.0
+	github.com/ivgag/schedulr/storage v0.0.0
+	github.com/ivgag/schedulr/tgbot v0.0.0
+	github.com/ivgag/schedulr/utils v0.0.0 // indirect
 	github.com/lib/pq v1.10.9 // indirect
 	go.opentelemetry.io/auto/sdk v1.1.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.58.0 // indirect

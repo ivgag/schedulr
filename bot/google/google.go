@@ -79,19 +79,16 @@ func (c *GoogleClient) CreateEvent(
 		TokenType:    "Bearer",
 	}
 
-	// Create an HTTP client using the obtained token.
 	client := c.oauth2Config.Client(ctx, oauth2Token)
 
-	// Create a new Calendar service.
 	srv, err := calendar.NewService(ctx, option.WithHTTPClient(client))
 	if err != nil {
 		return nil, err
 	}
 
-	// Assuming you already have a Calendar service instance (srv).
 	cal, err := srv.Calendars.Get("primary").Do()
 	if err != nil {
-		return nil, err // handle error appropriately
+		return nil, err
 	}
 
 	fmt.Printf("User's default time zone: %s\n", cal.TimeZone)

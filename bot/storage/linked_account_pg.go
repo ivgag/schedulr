@@ -2,6 +2,8 @@ package storage
 
 import (
 	"database/sql"
+
+	"github.com/ivgag/schedulr/domain"
 )
 
 func NewLinkedAccountRepository(db *sql.DB) LinkedAccountRepository {
@@ -41,7 +43,7 @@ func (p *PgLinkedAccountRepository) Update(account *LinkedAccount) error {
 }
 
 // GetByUserIDAndProvider implements ConnectedAccountRepository.
-func (p *PgLinkedAccountRepository) GetByUserIDAndProvider(userID int, provider string) (LinkedAccount, error) {
+func (p *PgLinkedAccountRepository) GetByUserIDAndProvider(userID int, provider domain.Provider) (LinkedAccount, error) {
 	var account LinkedAccount
 
 	err := p.db.QueryRow(`
@@ -50,10 +52,12 @@ func (p *PgLinkedAccountRepository) GetByUserIDAndProvider(userID int, provider 
 	WHERE user_id = $1 AND provider = $2`,
 		userID, provider,
 	).Scan(&account.ID, &account.UserID, &account.Provider, &account.AccessToken, &account.RefreshToken, &account.Expiry)
-	if err != nil {
+
+	if err != nil && err.Error() == noRowsError {
+		return LinkedAccount{}, domain.NotFoundError{Message: "account not found"}
+	} else if err != nil {
 		return LinkedAccount{}, err
-
+	} else {
+		return account, nil
 	}
-
-	return account, nil
 }
