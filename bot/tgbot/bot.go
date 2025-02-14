@@ -4,6 +4,9 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"sort"
+	"strings"
+	"time"
 
 	"github.com/go-telegram/bot"
 	"github.com/go-telegram/bot/models"
@@ -12,12 +15,8 @@ import (
 	"github.com/ivgag/schedulr/storage"
 )
 
-// NewBot initializes the Telegram bot using the provided context.
-func NewBot(
-	ctx context.Context,
-	userService *service.UserService,
-	eventService *service.EventService,
-) (*Bot, error) {
+// NewBot initializes the Telegram bot with the provided context and services.
+func NewBot(ctx context.Context, userService *service.UserService, eventService *service.EventService) (*Bot, error) {
 	return &Bot{
 		ctx:          ctx,
 		userService:  userService,
@@ -25,7 +24,7 @@ func NewBot(
 	}, nil
 }
 
-// Bot wraps the bot.Bot along with service dependencies.
+// Bot wraps bot.Bot with service dependencies.
 type Bot struct {
 	ctx          context.Context
 	chatBot      *bot.Bot
@@ -33,7 +32,7 @@ type Bot struct {
 	eventService *service.EventService
 }
 
-// Start begins processing updates. This method blocks until the context is cancelled.
+// Start initializes the Telegram bot, registers handlers, and starts update processing.
 func (b *Bot) Start() error {
 	opts := []bot.Option{
 		bot.WithDebug(),
@@ -50,88 +49,159 @@ func (b *Bot) Start() error {
 	b.chatBot.RegisterHandler(bot.HandlerTypeMessageText, "/linkgoogle", bot.MatchTypeExact, b.linkGoogleAccountHandler)
 
 	b.chatBot.Start(b.ctx)
-
 	return nil
 }
 
-// Stop terminates the Telegram bot's update processing.
+// Stop terminates update processing.
 func (b *Bot) Stop() {
 	b.chatBot.Close(b.ctx)
 }
 
+// startHandler creates a new user and prompts to link calendar.
 func (b *Bot) startHandler(ctx context.Context, botAPI *bot.Bot, update *models.Update) {
-	err := b.userService.CreateUser(&storage.User{
-		TelegramID: update.Message.Chat.ID,
-	})
+	chatID := update.Message.Chat.ID
 
-	if err != nil {
-		botAPI.SendMessage(ctx, &bot.SendMessageParams{
-			ChatID: update.Message.Chat.ID,
-			Text:   err.Error(),
-		})
-	} else {
-		botAPI.SendMessage(ctx, &bot.SendMessageParams{
-			ChatID: update.Message.Chat.ID,
-			Text:   "Link you Calendar: /linkgoogle",
-		})
-	}
-}
-
-func (b *Bot) linkGoogleAccountHandler(ctx context.Context, botAPI *bot.Bot, update *models.Update) {
-	link, err := b.userService.GetOAuth2Url(update.Message.Chat.ID, model.ProviderGoogle)
-	if err != nil {
-		botAPI.SendMessage(ctx, &bot.SendMessageParams{
-			ChatID: update.Message.Chat.ID,
-			Text:   err.Error(),
-		})
+	if err := b.userService.CreateUser(&storage.User{TelegramID: chatID}); err != nil {
+		b.sendMessage(ctx, chatID, err.Error(), "")
 		return
-	} else {
-		botAPI.SendMessage(ctx, &bot.SendMessageParams{
-			ChatID: update.Message.Chat.ID,
-			Text:   "Link your Google Calendar: " + link,
-		})
 	}
+	b.sendMessage(ctx, chatID, "Link your Calendar: /linkgoogle", "")
 }
 
-func (b *Bot) defaultHandler(ctx context.Context, botAPI *bot.Bot, update *models.Update) {
-	events, err := b.eventService.CreateEventsFromUserMessage(
-		update.Message.Chat.ID,
-		model.UserMessage{
-			Text:    update.Message.Text,
-			Caption: update.Message.Caption,
-		})
-
+// linkGoogleAccountHandler returns the OAuth2 URL for linking a Google account.
+func (b *Bot) linkGoogleAccountHandler(ctx context.Context, botAPI *bot.Bot, update *models.Update) {
+	chatID := update.Message.Chat.ID
+	link, err := b.userService.GetOAuth2Url(chatID, model.ProviderGoogle)
 	if err != nil {
-		botAPI.SendMessage(ctx, &bot.SendMessageParams{
-			ChatID: update.Message.Chat.ID,
-			Text:   err.Error(),
-		})
-	} else {
-		for _, event := range events {
-			botAPI.SendMessage(ctx, &bot.SendMessageParams{
-				ChatID:    update.Message.Chat.ID,
-				Text:      formatEventForTelegram(event),
-				ParseMode: "Markdown",
-			})
+		b.sendMessage(ctx, chatID, err.Error(), "")
+		return
+	}
+	b.sendMessage(ctx, chatID, "Link your Google Calendar: "+link, "")
+}
+
+// defaultHandler processes incoming messages (text or captions) and delegates handling.
+func (b *Bot) defaultHandler(ctx context.Context, botAPI *bot.Bot, update *models.Update) {
+	if update.Message.Text != "" {
+		b.handleIncomingText(ctx, update, update.Message.Text, update.Message.Entities, model.UserMessage, update.Message.From.Username)
+	} else if update.Message.Caption != "" {
+		from := getForwardOrigin(update)
+		b.handleIncomingText(ctx, update, update.Message.Caption, update.Message.CaptionEntities, model.ForwardedMessage, from)
+	}
+	// Если сообщение не содержит текст или подпись, ничего не делаем.
+}
+
+func (b *Bot) handleIncomingText(
+	ctx context.Context,
+	update *models.Update,
+	text string,
+	entities []models.MessageEntity,
+	msgType model.MessageType,
+	from string,
+) {
+	matterEntities := make([]models.MessageEntity, 0)
+	for _, entity := range entities {
+		if entity.Type == models.MessageEntityTypeTextLink ||
+			entity.Type == models.MessageEntityTypeTextMention ||
+			entity.Type == models.MessageEntityTypeURL {
+			matterEntities = append(matterEntities, entity)
 		}
 	}
+
+	message := &model.TextMessage{
+		From:        from,
+		Text:        formatMessageText(text, matterEntities),
+		MessageType: msgType,
+	}
+	b.handleTextMessage(ctx, update, message)
 }
 
-// FormatEventForTelegram returns a user-friendly string message representing the event.
+// handleTextMessage processes the text message and sends events as Telegram messages.
+func (b *Bot) handleTextMessage(ctx context.Context, update *models.Update, textMessage *model.TextMessage) {
+	chatID := update.Message.Chat.ID
+	events, err := b.eventService.CreateEventsFromUserMessage(chatID, *textMessage)
+	if err != nil {
+		b.sendMessage(ctx, chatID, err.Error(), "")
+		return
+	}
+
+	for _, event := range events {
+		b.sendMessage(ctx, chatID, formatEventForTelegram(event), models.ParseModeMarkdownV1)
+	}
+}
+
+// sendMessage wraps bot.SendMessage with common parameters.
+func (b *Bot) sendMessage(ctx context.Context, chatID int64, text string, parseMode models.ParseMode) {
+	params := &bot.SendMessageParams{
+		ChatID: chatID,
+		Text:   text,
+	}
+	if parseMode != "" {
+		params.ParseMode = parseMode
+	}
+	b.chatBot.SendMessage(ctx, params)
+}
+
+// formatEventForTelegram returns a formatted string representing the event.
 func formatEventForTelegram(e model.Event) string {
-	// Build the message with basic markdown formatting.
 	message := fmt.Sprintf("*%s*\n", e.Title)
 	if e.Description != "" {
 		message += fmt.Sprintf("%s\n", e.Description)
 	}
-	// Format time info. Assuming DateTime is already in a readable format.
-	message += fmt.Sprintf("*When:* %s - %s (%s)\n", e.Start.DateTime, e.End.DateTime, e.Start.TimeZone)
+	message += fmt.Sprintf("*When:* %s - %s (%s)\n",
+		e.Start.DateTime.Format(time.DateTime),
+		e.End.DateTime.Format(time.DateTime),
+		e.Start.TimeZone,
+	)
 	if e.Location != "" {
 		message += fmt.Sprintf("*Where:* %s\n", e.Location)
 	}
 	if e.Link != "" {
 		message += fmt.Sprintf("[More details](%s)\n", e.Link)
 	}
-
 	return message
+}
+
+// getForwardOrigin extracts the origin information from a forwarded message.
+func getForwardOrigin(update *models.Update) string {
+	fwd := update.Message.ForwardOrigin
+	switch {
+	case fwd.MessageOriginUser != nil:
+		return fwd.MessageOriginUser.SenderUser.Username
+	case fwd.MessageOriginHiddenUser != nil:
+		return fwd.MessageOriginHiddenUser.SenderUserName
+	case fwd.MessageOriginChannel != nil:
+		return fwd.MessageOriginChannel.Chat.Title
+	default:
+		return fwd.MessageOriginChat.SenderChat.Username
+	}
+}
+
+func formatMessageText(text string, entities []models.MessageEntity) string {
+	if len(entities) == 0 {
+		return text
+	}
+
+	var sb strings.Builder
+
+	sort.SliceStable(entities, func(i, j int) bool {
+		return entities[i].Offset < entities[j].Offset
+	})
+
+	runeArray := []rune(text)
+	generalOffset := 0
+
+	for _, entiry := range entities {
+		text1 := string(runeArray[generalOffset : entiry.Offset+entiry.Length])
+
+		sb.WriteString(
+			fmt.Sprintf(
+				"%s[%s]",
+				text1,
+				entiry.URL,
+			),
+		)
+		generalOffset = entiry.Offset + entiry.Length
+	}
+
+	return sb.String()
 }

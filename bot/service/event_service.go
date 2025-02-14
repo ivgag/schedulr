@@ -23,7 +23,7 @@ type EventService struct {
 	calendarServices map[model.Provider]CalendarService
 }
 
-func (s *EventService) CreateEventsFromUserMessage(telegramID int64, message model.UserMessage) ([]model.Event, error) {
+func (s *EventService) CreateEventsFromUserMessage(telegramID int64, message model.TextMessage) ([]model.Event, error) {
 	user, err := s.userService.GetUserByTelegramID(telegramID)
 	if err != nil {
 		return nil, err

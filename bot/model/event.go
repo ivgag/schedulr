@@ -1,5 +1,7 @@
 package model
 
+import "time"
+
 type Event struct {
 	Title       string    `json:"title"`
 	Description string    `json:"description"`
@@ -11,6 +13,6 @@ type Event struct {
 }
 
 type TimeStamp struct {
-	DateTime string `json:"dateTime"`
-	TimeZone string `json:"timeZone"`
+	DateTime time.Time `json:"dateTime"`
+	TimeZone string    `json:"timeZone"`
 }
