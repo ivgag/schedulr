@@ -34,7 +34,7 @@ func (p *PgLinkedAccountRepository) Create(account LinkedAccount) error {
 func (p *PgLinkedAccountRepository) Update(account LinkedAccount) error {
 	_, err := p.db.Exec(`
 	UPDATE linked_accounts
-	SET access_token = $1, refresh_token = $2, expiry = $3
+	SET access_token = $1, refresh_token = $2, expiry = $3, updated_at = (timezone('utc', now()))
 	WHERE id = $4`,
 		account.AccessToken, account.RefreshToken, account.Expiry, account.ID,
 	)

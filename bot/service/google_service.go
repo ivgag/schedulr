@@ -91,7 +91,7 @@ func (s *GoogleTokenService) ExchangeCodeForToken(state string, code string) err
 		Provider:     model.ProviderGoogle,
 		AccessToken:  gToken.AccessToken,
 		RefreshToken: gToken.RefreshToken,
-		Expiry:       gToken.Expiry,
+		Expiry:       gToken.Expiry.UTC(),
 	})
 
 	return err
@@ -104,7 +104,7 @@ func (s *GoogleTokenService) ClientForUser(userID int) (*http.Client, error) {
 		return nil, err
 	}
 
-	if account.Expiry.Before(time.Now()) {
+	if time.Now().UTC().After(account.Expiry) {
 		tokenSource := s.oauth2Config.TokenSource(context.Background(), &oauth2.Token{
 			RefreshToken: account.RefreshToken,
 		})
@@ -168,11 +168,11 @@ func (c *GoogleCalendarService) CreateEvent(userID int, event *model.Event) (*mo
 		Location:    event.Location,
 		Description: event.Description,
 		Start: &calendar.EventDateTime{
-			DateTime: event.Start.DateTime,
+			DateTime: event.Start.DateTime.Format(time.RFC3339),
 			TimeZone: cal.TimeZone,
 		},
 		End: &calendar.EventDateTime{
-			DateTime: event.End.DateTime,
+			DateTime: event.End.DateTime.Format(time.RFC3339),
 			TimeZone: cal.TimeZone,
 		},
 	}
