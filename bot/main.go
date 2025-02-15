@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"database/sql"
-	"log"
 	"net/http"
 	"os"
 	"os/signal"
@@ -17,6 +16,7 @@ import (
 	"github.com/ivgag/schedulr/tgbot"
 	"github.com/ivgag/schedulr/utils"
 	_ "github.com/jackc/pgx/v4/stdlib"
+	"github.com/rs/zerolog/log"
 )
 
 func main() {
@@ -42,10 +42,17 @@ func main() {
 	userRepo := storage.NewUserRepository(db)
 	linkedAccountRepo := storage.NewLinkedAccountRepository(db)
 
-	aiClient, err := ai.NewOpenAI()
+	openAi, err := ai.NewOpenAI()
 	if err != nil {
 		panic(err)
 	}
+
+	deepseek, err := ai.NewDeepSeekAI()
+	if err != nil {
+		panic(err)
+	}
+
+	aiService := service.NewAIService([]ai.AI{openAi, deepseek})
 
 	googleTokenService, err := service.NewGoogleTokenService(linkedAccountRepo)
 	if err != nil {
@@ -66,7 +73,7 @@ func main() {
 		model.ProviderGoogle: googleCalendarService,
 	}
 
-	eventService := service.NewEventService(aiClient, *userService, calendarServices)
+	eventService := service.NewEventService(*aiService, *userService, calendarServices)
 
 	// Initialize the Telegram bot with the global context.
 	bot, err := tgbot.NewBot(ctx, userService, eventService)
@@ -76,7 +83,7 @@ func main() {
 	// Run the bot in a separate goroutine.
 	go func() {
 		if err := bot.Start(); err != nil {
-			log.Printf("Telegram bot error: %v", err)
+			log.Error().Err(err).Msg("Telegram bot error")
 		}
 	}()
 
@@ -89,10 +96,12 @@ func main() {
 	// Run the REST server in a separate goroutine.
 	go func() {
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("REST server error: %v", err)
+			log.Error().Err(err).Msg("REST server error")
 		}
 	}()
-	log.Println("Server is running on port 8080")
+	log.Info().
+		Int("port", 8080).
+		Msg("REST server is running")
 
 	// Wait for the termination signal.
 	<-ctx.Done()
@@ -101,7 +110,7 @@ func main() {
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer shutdownCancel()
 	if err := srv.Shutdown(shutdownCtx); err != nil {
-		log.Printf("REST server shutdown error: %v", err)
+		log.Error().Err(err).Msg("REST server shutdown error")
 	}
 
 	bot.Stop()

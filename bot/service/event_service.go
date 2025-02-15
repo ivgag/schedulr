@@ -1,24 +1,23 @@
 package service
 
 import (
-	"github.com/ivgag/schedulr/ai"
 	"github.com/ivgag/schedulr/model"
 )
 
 func NewEventService(
-	ai ai.AI,
+	aiService AIService,
 	userService UserService,
 	clanedarServices map[model.Provider]CalendarService,
 ) *EventService {
 	return &EventService{
-		ai:               ai,
+		aiService:        aiService,
 		userService:      userService,
 		calendarServices: clanedarServices,
 	}
 }
 
 type EventService struct {
-	ai               ai.AI
+	aiService        AIService
 	userService      UserService
 	calendarServices map[model.Provider]CalendarService
 }
@@ -29,7 +28,7 @@ func (s *EventService) CreateEventsFromUserMessage(telegramID int64, message mod
 		return nil, err
 	}
 
-	events, err := s.ai.GetEvents(&message)
+	events, err := s.aiService.ExtractCalendarEvents(&message)
 	if err != nil {
 		return nil, err
 	}

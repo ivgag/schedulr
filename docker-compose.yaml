@@ -23,7 +23,8 @@ services:
     environment:
       DATABASE_URL: "postgres://postgres:postgres@postgres:5432/schedulr?sslmode=disable"
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
-      AI_SERVICE_CLIENT: ${AI_SERVICE_CLIENT}
+      OPEN_AI_API_KEY: ${OPEN_AI_API_KEY}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
       GOOGLE_REDIRECT_URL: ${GOOGLE_REDIRECT_URL}

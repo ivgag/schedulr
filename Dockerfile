@@ -1,5 +1,5 @@
 # Stage 1: Build the application
-FROM golang:1.23.2-alpine AS builder
+FROM golang:1.23.3-alpine AS builder
 WORKDIR /app
 COPY ./bot .
 RUN go mod download

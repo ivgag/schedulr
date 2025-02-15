@@ -13,6 +13,7 @@ import (
 	"github.com/ivgag/schedulr/model"
 	"github.com/ivgag/schedulr/service"
 	"github.com/ivgag/schedulr/storage"
+	"github.com/rs/zerolog/log"
 )
 
 // NewBot initializes the Telegram bot with the provided context and services.
@@ -120,7 +121,12 @@ func (b *Bot) handleTextMessage(ctx context.Context, update *models.Update, text
 	chatID := update.Message.Chat.ID
 	events, err := b.eventService.CreateEventsFromUserMessage(chatID, *textMessage)
 	if err != nil {
-		b.sendMessage(ctx, chatID, err.Error(), "")
+		log.Error().
+			Int64("chatID", chatID).
+			Err(err).
+			Msg("Failed to create events")
+
+		b.sendMessage(ctx, chatID, "Failed to create events. Try later.", "")
 		return
 	}
 

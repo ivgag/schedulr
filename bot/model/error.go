@@ -1,7 +1,19 @@
 package model
 
-type error interface {
+type Error interface {
 	Error() string
+}
+
+type errorImpl struct {
+	message string
+}
+
+func (e errorImpl) Error() string {
+	return e.message
+}
+
+func ErrorForMessage(message string) Error {
+	return errorImpl{message: message}
 }
 
 type NotFoundError struct {

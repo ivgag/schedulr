@@ -2,72 +2,40 @@ package ai
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
-	"fmt"
-	"os"
-	"strings"
-	"time"
 
 	"github.com/ivgag/schedulr/model"
+	"github.com/ivgag/schedulr/utils"
 	openai "github.com/sashabaranov/go-openai"
+	"github.com/sashabaranov/go-openai/jsonschema"
 )
 
-var openApiClientTokenEnv = "AI_SERVICE_CLIENT"
+func NewOpenAI() (*OpenAI, error) {
+	openAiToken, err := utils.GetenvOrError("OPEN_AI_API_KEY")
+	if err != nil {
+		return nil, err
+	}
+
+	client := openai.NewClient(openAiToken)
+	return &OpenAI{client: client}, nil
+}
 
 type OpenAI struct {
 	client *openai.Client
 }
 
-func (o *OpenAI) GetEvents(message *model.TextMessage) ([]model.Event, error) {
-	prompt := fmt.Sprintf(`
-		You are a calendar assistant that extracts event details from user input 
-		(which may include announcements, tickets, ads, and other related content) and 
-		converts them into JSON for creating calendar events (e.g., in Google, Microsoft, Yandex).
+func (o *OpenAI) Provider() AIProvider {
+	return ProviderOpenAI
+}
 
-		Your Tasks
-		1. Extract key event details:
-			• Title
-			• Description (including critical details like price, links, host’s name, etc.)
-			• Start date/time
-			• End date/time
-			• Location
-			• Event type
-		2. Resolve relative dates using the reference date:
-			> "Today is %s"
-		3. If an event’s details cannot be fully extracted, ignore that event.
-		4. If no event details are found, return an empty JSON array.
-
-		Input Format
-		• The user input may include Telegram messages, either single or multiple messages.
-		• Messages may be:
-		• Forwarded from an events channel in the user’s city.
-		• A forwarded conversation between users.
-		• Forwarded messages plus a command to the bot.
-		• You need to parse all incoming text to find any event-related information.
-
-		Output format
-		Your output must be a JSON array. Each event is represented as an object of the form:
-
-		[
-		{
-			"title": "Event Title",
-			"description": "A well-formatted brief description that includes all critical details (price, links, host’s name, etc.).",
-			"start": {
-			"dateTime": "YYYY-MM-DDTHH:MM:SSZ"
-			},
-			"end": {
-			"dateTime": "YYYY-MM-DDTHH:MM:SSZ"
-			},
-			"location": "Event Location",
-			"eventType": "announcement"
-		}
-		]
-		`,
-		time.Now().Format(time.DateTime),
-	)
-
+func (o *OpenAI) ExtractCalendarEvents(message *model.TextMessage) ([]model.Event, model.Error) {
 	userInput := messagesToText([]model.TextMessage{*message})
+
+	var result []model.Event
+	schema, err := jsonschema.GenerateSchemaForType(result)
+	if err != nil {
+		return nil, err
+	}
 
 	resp, err := o.client.CreateChatCompletion(
 		context.Background(),
@@ -76,60 +44,50 @@ func (o *OpenAI) GetEvents(message *model.TextMessage) ([]model.Event, error) {
 			Messages: []openai.ChatCompletionMessage{
 				{
 					Role:    openai.ChatMessageRoleSystem,
-					Content: prompt,
+					Content: extractCalendarEventsPrompt(),
 				},
 				{
 					Role:    openai.ChatMessageRoleUser,
 					Content: userInput,
 				},
 			},
+			ResponseFormat: &openai.ChatCompletionResponseFormat{
+				Type: openai.ChatCompletionResponseFormatTypeJSONSchema,
+				JSONSchema: &openai.ChatCompletionResponseFormatJSONSchema{
+					Name:   "extractedEvents",
+					Schema: schema,
+					Strict: true,
+				},
+			},
 		},
 	)
-	if err != nil {
-		return nil, err
-	}
 
-	responseContent := resp.Choices[0].Message.Content
-
-	var events []model.Event
-	err = json.Unmarshal([]byte(removeJsonFormattingMarkers(responseContent)), &events)
-	if err != nil {
-		return nil, err
-	}
-
-	return events, nil
-}
-
-func NewOpenAI() (*OpenAI, error) {
-	openAiToken := os.Getenv(openApiClientTokenEnv)
-	if openAiToken == "" {
-		return nil, errors.New(openApiClientTokenEnv + " is not set")
-	}
-
-	client := openai.NewClient(openAiToken)
-	return &OpenAI{client: client}, nil
-}
-
-func removeJsonFormattingMarkers(text string) string {
-	// Remove formatting markers (```json and trailing backticks)
-	text = strings.TrimPrefix(text, "```json")
-	text = strings.TrimSuffix(text, "```")
-	return text
-}
-
-// messagesToText converts an array of TextMessages into a single string.
-// It uses formatMessageText to include entity markers correctly.
-func messagesToText(messages []model.TextMessage) string {
-	var sb strings.Builder
-
-	for _, msg := range messages {
-		switch msg.MessageType {
-		case model.UserMessage:
-			sb.WriteString(fmt.Sprintf("%s: %s\n", msg.From, msg.Text))
-		case model.ForwardedMessage:
-			sb.WriteString(fmt.Sprintf("Forwarded from %s: %s\n", msg.From, msg.Text))
+	e := &openai.APIError{}
+	if errors.As(err, &e) {
+		switch e.HTTPStatusCode {
+		case 500, 503:
+			return nil, ApiError{
+				Message:      e.Message,
+				ResponseCode: e.HTTPStatusCode,
+				Retryable:    true,
+			}
+		default:
+			return nil, ApiError{
+				Message:      e.Message,
+				ResponseCode: e.HTTPStatusCode,
+				Retryable:    false,
+			}
 		}
 	}
 
-	return sb.String()
+	if err != nil {
+		return nil, err
+	}
+
+	err = schema.Unmarshal(resp.Choices[0].Message.Content, &result)
+	if err != nil {
+		return nil, err
+	}
+
+	return result, nil
 }

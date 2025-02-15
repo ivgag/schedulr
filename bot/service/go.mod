@@ -1,6 +1,6 @@
 module github.com/ivgag/schedulr/service
 
-go 1.23.1
+go 1.23.3
 
 replace (
 	github.com/ivgag/schedulr/ai v0.0.0 => ../ai
@@ -15,6 +15,7 @@ require (
 	github.com/ivgag/schedulr/model v0.0.0
 	github.com/ivgag/schedulr/storage v0.0.0
 	github.com/ivgag/schedulr/utils v0.0.0
+	github.com/rs/zerolog v1.33.0
 	golang.org/x/oauth2 v0.26.0
 	google.golang.org/api v0.220.0
 )
@@ -23,6 +24,7 @@ require (
 	cloud.google.com/go/auth v0.14.1 // indirect
 	cloud.google.com/go/auth/oauth2adapt v0.2.7 // indirect
 	cloud.google.com/go/compute/metadata v0.6.0 // indirect
+	github.com/cohesion-org/deepseek-go v1.2.1 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/go-logr/logr v1.4.2 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
@@ -30,6 +32,9 @@ require (
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.3.4 // indirect
 	github.com/googleapis/gax-go/v2 v2.14.1 // indirect
+	github.com/joho/godotenv v1.5.1 // indirect
+	github.com/mattn/go-colorable v0.1.13 // indirect
+	github.com/mattn/go-isatty v0.0.19 // indirect
 	github.com/sashabaranov/go-openai v1.37.0 // indirect
 	go.opentelemetry.io/auto/sdk v1.1.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.58.0 // indirect
