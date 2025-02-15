@@ -10,6 +10,7 @@ replace (
 )
 
 require (
+	github.com/cenkalti/backoff/v5 v5.0.2
 	github.com/gofrs/uuid v4.4.0+incompatible
 	github.com/ivgag/schedulr/ai v0.0.0
 	github.com/ivgag/schedulr/model v0.0.0

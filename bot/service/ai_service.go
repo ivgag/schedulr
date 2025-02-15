@@ -1,6 +1,10 @@
 package service
 
 import (
+	"context"
+	"errors"
+
+	"github.com/cenkalti/backoff/v5"
 	"github.com/rs/zerolog/log"
 
 	"github.com/ivgag/schedulr/ai"
@@ -25,16 +29,43 @@ type AIService struct {
 
 func (s *AIService) ExtractCalendarEvents(message *model.TextMessage) ([]model.Event, model.Error) {
 	for _, ai := range s.aisMap {
-		events, err := ai.ExtractCalendarEvents(message)
-		if err == nil {
-			return events, nil
-		} else {
+
+		events, err := s.extractEventsWithRetires(message, ai)
+		if err != nil {
 			log.Warn().
 				Str("provider", string(ai.Provider())).
 				Err(err).
 				Msg("AI provider failed to extract events from the message")
 		}
+
+		return events, nil
 	}
 
 	return nil, model.ErrorForMessage("No AI provider was able to extract events from the message")
+}
+
+func (s *AIService) extractEventsWithRetires(message *model.TextMessage, agent ai.AI) ([]model.Event, model.Error) {
+	operation := func() ([]model.Event, error) {
+		var apiError = ai.ApiError{}
+		events, err := agent.ExtractCalendarEvents(message)
+		if err == nil {
+			return events, nil
+		} else if errors.As(err, &apiError) && apiError.Retryable {
+			return nil, err
+		} else {
+			return events, backoff.Permanent(err)
+		}
+	}
+
+	events, err := backoff.Retry(
+		context.Background(),
+		operation,
+		backoff.WithBackOff(backoff.NewExponentialBackOff()),
+		backoff.WithMaxTries(3),
+	)
+
+	if err != nil {
+		return nil, err
+	}
+	return events, nil
 }

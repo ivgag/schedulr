@@ -85,6 +85,7 @@ require (
 require github.com/rs/zerolog v1.33.0
 
 require (
+	github.com/cenkalti/backoff/v5 v5.0.2 // indirect
 	github.com/cohesion-org/deepseek-go v1.2.1 // indirect
 	github.com/joho/godotenv v1.5.1 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect

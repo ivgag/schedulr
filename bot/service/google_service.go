@@ -6,10 +6,12 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/cenkalti/backoff/v5"
 	"github.com/gofrs/uuid"
 	"github.com/ivgag/schedulr/model"
 	"github.com/ivgag/schedulr/storage"
 	"github.com/ivgag/schedulr/utils"
+	"github.com/rs/zerolog/log"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/calendar/v3"
@@ -161,30 +163,58 @@ func (c *GoogleCalendarService) CreateEvent(userID int, event *model.Event) (*mo
 		return nil, err
 	}
 
-	fmt.Printf("User's default time zone: %s\n", cal.TimeZone)
+	calEvent := toGoogleCalendarEvent(event)
 
-	calEvent := &calendar.Event{
+	link, err := c.insertEventWithRetries(srv, calEvent)
+	if err != nil {
+		log.Error().
+			Interface("event", calEvent).
+			Err(err).
+			Msg("Failed to create event")
+
+		return nil, err
+	}
+
+	event.Link = link
+	event.Start.TimeZone = cal.TimeZone
+	event.End.TimeZone = cal.TimeZone
+
+	return event, nil
+}
+
+func (c *GoogleCalendarService) insertEventWithRetries(
+	srv *calendar.Service,
+	event *calendar.Event,
+) (string, error) {
+	operation := func() (string, error) {
+		createdEvent, err := srv.Events.Insert("primary", event).Do()
+		if err != nil {
+			return "", err
+		}
+
+		return createdEvent.HtmlLink, nil
+	}
+
+	return backoff.Retry(
+		context.Background(),
+		operation,
+		backoff.WithBackOff(backoff.NewExponentialBackOff()),
+		backoff.WithMaxTries(3),
+	)
+}
+
+func toGoogleCalendarEvent(event *model.Event) *calendar.Event {
+	return &calendar.Event{
 		Summary:     event.Title,
 		Location:    event.Location,
 		Description: event.Description,
 		Start: &calendar.EventDateTime{
 			DateTime: event.Start.DateTime.Format(time.RFC3339),
-			TimeZone: cal.TimeZone,
+			TimeZone: event.Start.TimeZone,
 		},
 		End: &calendar.EventDateTime{
 			DateTime: event.End.DateTime.Format(time.RFC3339),
-			TimeZone: cal.TimeZone,
+			TimeZone: event.End.TimeZone,
 		},
 	}
-
-	createdEvent, err := srv.Events.Insert("primary", calEvent).Do()
-	if err != nil {
-		return nil, err
-	}
-
-	event.Link = createdEvent.HtmlLink
-	event.Start.TimeZone = cal.TimeZone
-	event.End.TimeZone = cal.TimeZone
-
-	return event, nil
 }
