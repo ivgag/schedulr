@@ -37,6 +37,8 @@ type Bot struct {
 func (b *Bot) Start() error {
 	opts := []bot.Option{
 		bot.WithDebug(),
+		bot.WithDebugHandler(debugHandler),
+		bot.WithErrorsHandler(errorsHandler),
 		bot.WithDefaultHandler(b.defaultHandler),
 	}
 
@@ -210,4 +212,12 @@ func formatMessageText(text string, entities []models.MessageEntity) string {
 	}
 
 	return sb.String()
+}
+
+func debugHandler(format string, args ...interface{}) {
+	log.Debug().Msg(fmt.Sprintf(format, args...))
+}
+
+func errorsHandler(err error) {
+	log.Error().Err(err).Msg("Telegram bot error")
 }

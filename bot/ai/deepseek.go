@@ -7,7 +7,6 @@ import (
 
 	"github.com/ivgag/schedulr/model"
 	"github.com/ivgag/schedulr/utils"
-	"github.com/sashabaranov/go-openai/jsonschema"
 
 	deepseek "github.com/cohesion-org/deepseek-go"
 	constants "github.com/cohesion-org/deepseek-go/constants"
@@ -35,23 +34,10 @@ func (d *DeepSeekAI) Provider() AIProvider {
 }
 
 func (d *DeepSeekAI) ExtractCalendarEvents(message *model.TextMessage) ([]model.Event, model.Error) {
-	var result []model.Event
-	schema, err := jsonschema.GenerateSchemaForType(result)
-	if err != nil {
-		return nil, err
-	}
-
-	jsonBytes, err := json.Marshal(schema)
-	if err != nil {
-		return nil, err
-	}
-	outputSchema := "Output format: " + string(jsonBytes)
-
 	request := &deepseek.ChatCompletionRequest{
 		Model: deepseek.DeepSeekChat,
 		Messages: []deepseek.ChatCompletionMessage{
 			{Role: constants.ChatMessageRoleSystem, Content: extractCalendarEventsPrompt()},
-			{Role: constants.ChatMessageRoleSystem, Content: outputSchema},
 			{Role: constants.ChatMessageRoleUser, Content: messagesToText([]model.TextMessage{*message})},
 		},
 		ResponseFormat: &deepseek.ResponseFormat{
@@ -81,12 +67,17 @@ func (d *DeepSeekAI) ExtractCalendarEvents(message *model.TextMessage) ([]model.
 				Retryable:    false,
 			}
 		}
-	}
-
-	err = schema.Unmarshal(response.Choices[0].Message.Content, &result)
-	if err != nil {
+	} else if err != nil {
 		return nil, err
-	}
+	} else {
+		responseContent := response.Choices[0].Message.Content
 
-	return result, nil
+		var events []model.Event
+		err = json.Unmarshal([]byte(removeJsonFormattingMarkers(responseContent)), &events)
+		if err != nil {
+			return nil, err
+		}
+
+		return events, nil
+	}
 }

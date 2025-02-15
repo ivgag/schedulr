@@ -29,7 +29,7 @@ func extractCalendarEventsPrompt() string {
 	Your Tasks
 	1. Extract key event details:
 		• Title
-		• Well-formatted brief description (including critical details like price, links, host’s name, etc.)
+		• Description
 		• Start date/time
 		• End date/time
 		• Location
@@ -46,6 +46,24 @@ func extractCalendarEventsPrompt() string {
 		• A forwarded conversation between users.
 		• Forwarded messages plus a command to the bot.
 	• You need to parse all incoming text to find any event-related information.
+
+	Output format
+	Your output must be a JSON array. Each event is represented as an object of the form:
+
+	[
+	{
+		"title": "Event Title",
+		"description": "A well-formatted brief description that includes all critical details (price, links, host’s name, etc.).",
+		"start": {
+		"dateTime": "YYYY-MM-DDTHH:MM:SSZ"
+		},
+		"end": {
+		"dateTime": "YYYY-MM-DDTHH:MM:SSZ"
+		},
+		"location": "Event Location",
+		"eventType": "announcement"
+	}
+	]
 	`,
 		time.Now().Format(time.DateTime),
 	)

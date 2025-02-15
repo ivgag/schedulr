@@ -16,10 +16,13 @@ import (
 	"github.com/ivgag/schedulr/tgbot"
 	"github.com/ivgag/schedulr/utils"
 	_ "github.com/jackc/pgx/v4/stdlib"
+	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
 
 func main() {
+	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
+
 	// Create a global context with SIGINT signal handling.
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()

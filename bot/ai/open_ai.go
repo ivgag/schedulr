@@ -2,12 +2,12 @@ package ai
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 
 	"github.com/ivgag/schedulr/model"
 	"github.com/ivgag/schedulr/utils"
 	openai "github.com/sashabaranov/go-openai"
-	"github.com/sashabaranov/go-openai/jsonschema"
 )
 
 func NewOpenAI() (*OpenAI, error) {
@@ -31,16 +31,10 @@ func (o *OpenAI) Provider() AIProvider {
 func (o *OpenAI) ExtractCalendarEvents(message *model.TextMessage) ([]model.Event, model.Error) {
 	userInput := messagesToText([]model.TextMessage{*message})
 
-	var result []model.Event
-	schema, err := jsonschema.GenerateSchemaForType(result)
-	if err != nil {
-		return nil, err
-	}
-
 	resp, err := o.client.CreateChatCompletion(
 		context.Background(),
 		openai.ChatCompletionRequest{
-			Model: openai.GPT3Dot5Turbo,
+			Model: openai.GPT4oMini,
 			Messages: []openai.ChatCompletionMessage{
 				{
 					Role:    openai.ChatMessageRoleSystem,
@@ -49,14 +43,6 @@ func (o *OpenAI) ExtractCalendarEvents(message *model.TextMessage) ([]model.Even
 				{
 					Role:    openai.ChatMessageRoleUser,
 					Content: userInput,
-				},
-			},
-			ResponseFormat: &openai.ChatCompletionResponseFormat{
-				Type: openai.ChatCompletionResponseFormatTypeJSONSchema,
-				JSONSchema: &openai.ChatCompletionResponseFormatJSONSchema{
-					Name:   "extractedEvents",
-					Schema: schema,
-					Strict: true,
 				},
 			},
 		},
@@ -78,16 +64,17 @@ func (o *OpenAI) ExtractCalendarEvents(message *model.TextMessage) ([]model.Even
 				Retryable:    false,
 			}
 		}
-	}
-
-	if err != nil {
+	} else if err != nil {
 		return nil, err
-	}
+	} else {
+		responseContent := resp.Choices[0].Message.Content
 
-	err = schema.Unmarshal(resp.Choices[0].Message.Content, &result)
-	if err != nil {
-		return nil, err
-	}
+		var events []model.Event
+		err = json.Unmarshal([]byte(removeJsonFormattingMarkers(responseContent)), &events)
+		if err != nil {
+			return nil, err
+		}
 
-	return result, nil
+		return events, nil
+	}
 }

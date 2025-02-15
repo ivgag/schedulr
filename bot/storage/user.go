@@ -8,5 +8,5 @@ type User struct {
 type UserRepository interface {
 	GetByID(id int) (User, error)
 	GetByTelegramID(telegramID int64) (User, error)
-	Create(user *User) error
+	Save(user *User) error
 }

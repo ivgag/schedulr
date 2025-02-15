@@ -14,12 +14,18 @@ type PgLinkedAccountRepository struct {
 	db *sql.DB
 }
 
-// Create implements ConnectedAccountRepository.
-func (p *PgLinkedAccountRepository) Create(account LinkedAccount) error {
+// Save implements ConnectedAccountRepository.
+func (p *PgLinkedAccountRepository) Save(account LinkedAccount) error {
 	row := p.db.QueryRow(`
-	INSERT INTO linked_accounts(user_id, provider, access_token, refresh_token, expiry) 
-	VALUES($1, $2, $3, $4, $5) 
-	RETURNING id`,
+	INSERT INTO linked_accounts(user_id, provider, access_token, refresh_token, expiry, created_at, updated_at)
+	VALUES($1, $2, $3, $4, $5, timezone('utc', now()), timezone('utc', now())
+	ON CONFLICT (user_id, provider) DO UPDATE
+	SET access_token = EXCLUDED.access_token,
+		refresh_token = EXCLUDED.refresh_token,
+		expiry = EXCLUDED.expiry,
+		updated_at = timezone('utc', now())
+	RETURNING id
+	`,
 		account.UserID, account.Provider, account.AccessToken, account.RefreshToken, account.Expiry,
 	)
 
@@ -28,18 +34,6 @@ func (p *PgLinkedAccountRepository) Create(account LinkedAccount) error {
 	}
 
 	return nil
-}
-
-// Update implements LinkedAccountRepository.
-func (p *PgLinkedAccountRepository) Update(account LinkedAccount) error {
-	_, err := p.db.Exec(`
-	UPDATE linked_accounts
-	SET access_token = $1, refresh_token = $2, expiry = $3, updated_at = (timezone('utc', now()))
-	WHERE id = $4`,
-		account.AccessToken, account.RefreshToken, account.Expiry, account.ID,
-	)
-
-	return err
 }
 
 // GetByUserIDAndProvider implements ConnectedAccountRepository.

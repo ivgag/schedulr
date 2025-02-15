@@ -88,7 +88,7 @@ func (s *GoogleTokenService) ExchangeCodeForToken(state string, code string) err
 		return err
 	}
 
-	err = s.linkedAccountsRepository.Create(storage.LinkedAccount{
+	err = s.linkedAccountsRepository.Save(storage.LinkedAccount{
 		UserID:       usedID,
 		Provider:     model.ProviderGoogle,
 		AccessToken:  gToken.AccessToken,
@@ -119,7 +119,7 @@ func (s *GoogleTokenService) ClientForUser(userID int) (*http.Client, error) {
 		account.RefreshToken = newToken.RefreshToken
 		account.Expiry = newToken.Expiry
 
-		err = s.linkedAccountsRepository.Update(account)
+		err = s.linkedAccountsRepository.Save(account)
 		if err != nil {
 			return nil, err
 		}

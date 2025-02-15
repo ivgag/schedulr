@@ -16,7 +16,6 @@ type LinkedAccount struct {
 }
 
 type LinkedAccountRepository interface {
-	Create(account LinkedAccount) error
-	Update(account LinkedAccount) error
+	Save(account LinkedAccount) error
 	GetByUserIDAndProvider(userID int, provider model.Provider) (LinkedAccount, error)
 }

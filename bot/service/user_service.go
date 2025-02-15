@@ -31,7 +31,7 @@ func (s *UserService) GetUserByTelegramID(telegramID int64) (storage.User, error
 }
 
 func (s *UserService) CreateUser(user *storage.User) error {
-	return s.userRepository.Create(user)
+	return s.userRepository.Save(user)
 }
 
 func (s *UserService) GetOAuth2Url(telegramID int64, provider model.Provider) (string, error) {

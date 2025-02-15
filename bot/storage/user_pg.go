@@ -43,7 +43,13 @@ func (r *PgUserRepository) GetByTelegramID(telegramID int64) (User, error) {
 	}
 }
 
-func (r *PgUserRepository) Create(user *User) error {
-	query := "INSERT INTO users(telegram_id) VALUES($1) RETURNING id"
+func (r *PgUserRepository) Save(user *User) error {
+	query := `
+	INSERT INTO users(telegram_id)
+	VALUES($1)
+	ON CONFLICT (telegram_id)
+	DO UPDATE SET telegram_id = users.telegram_id
+	RETURNING id;
+	`
 	return r.db.QueryRow(query, user.TelegramID).Scan(&user.ID)
 }
