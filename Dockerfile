@@ -9,9 +9,9 @@ RUN CGO_ENABLED=0 GOOS=linux go build -o app main.go
 FROM alpine:3.21.2
 WORKDIR /app
 
-LABEL org.opencontainers.image.source="https://github.com/ivgag/schedulr" \
-      org.opencontainers.image.description="A simple bot that schedules events on a calendar" \
-      org.opencontainers.image.licenses="MIT"
+LABEL org.opencontainers.image.source="https://github.com/ivgag/schedulr" 
+LABEL org.opencontainers.image.description="A simple bot that schedules events on a calendar" 
+LABEL org.opencontainers.image.licenses="MIT"
 
 # Install ca-certificates and wget (for downloading migrate CLI)
 RUN apk add --no-cache ca-certificates wget tar
