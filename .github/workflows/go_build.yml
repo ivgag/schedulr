@@ -1,0 +1,24 @@
+name: Build Go on PR to develop
+
+on:
+  pull_request:
+    branches: [develop]
+
+jobs:
+  build-go:
+    runs-on: ubuntu-latest
+    steps:
+        - uses: actions/checkout@v4
+    
+        - name: Set up Go
+          uses: actions/setup-go@v4
+          with:
+            go-version: '1.23.3'
+    
+        - name: Build
+          working-directory: ./bot
+          run: go build -v ./...
+    
+        - name: Test
+          working-directory: ./bot
+          run: go test -v ./...
