@@ -11,7 +11,7 @@ WORKDIR /app
 
 LABEL org.opencontainers.image.source="https://github.com/ivgag/schedulr" 
 LABEL org.opencontainers.image.description="A simple bot that schedules events on a calendar" 
-LABEL org.opencontainers.image.licenses="MIT"
+LABEL org.opencontainers.image.licenses="EPL-2.0"
 
 # Install ca-certificates and wget (for downloading migrate CLI)
 RUN apk add --no-cache ca-certificates wget tar
