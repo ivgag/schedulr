@@ -40,7 +40,7 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=edge,branch=$repo.default_branch
+            type=edge,branch=main
             type=semver,pattern=v{{version}}
             type=sha,prefix=,suffix=,format=short
       
