@@ -1,0 +1,18 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug bot",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "program": "${workspaceFolder}/bot",
+            "env": {
+                "DATABASE_URL": "postgres://postgres:postgres@postgres:5432/schedulr?sslmode=disable",
+                "CONFIG_NAME": ".config-dev",
+                "CONFIG_PATH": "./.."
+            },
+            "showLog": true
+        }
+    ]
+}

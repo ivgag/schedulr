@@ -29,7 +29,6 @@ import (
 	"github.com/gofrs/uuid"
 	"github.com/ivgag/schedulr/model"
 	"github.com/ivgag/schedulr/storage"
-	"github.com/ivgag/schedulr/utils"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
@@ -41,27 +40,13 @@ var stateTokens = make(map[string]int)
 
 // NewGoogleTokenService creates a new TokenService.
 func NewGoogleTokenService(
+	config *GoogleConfig,
 	linkedAccountsRepository storage.LinkedAccountRepository,
-) (*GoogleTokenService, error) {
-	clientID, err := utils.GetenvOrError("GOOGLE_CLIENT_ID")
-	if err != nil {
-		return nil, err
-	}
-
-	clientSecret, err := utils.GetenvOrError("GOOGLE_CLIENT_SECRET")
-	if err != nil {
-		return nil, err
-	}
-
-	redirectURL, err := utils.GetenvOrError("GOOGLE_REDIRECT_URL")
-	if err != nil {
-		return nil, err
-	}
-
+) *GoogleTokenService {
 	oauth2Config := &oauth2.Config{
-		ClientID:     clientID,
-		ClientSecret: clientSecret,
-		RedirectURL:  redirectURL,
+		ClientID:     config.ClientID,
+		ClientSecret: config.ClientSecret,
+		RedirectURL:  config.RedirectURL,
 		Endpoint:     google.Endpoint,
 		Scopes:       []string{calendar.CalendarScope},
 	}
@@ -69,7 +54,7 @@ func NewGoogleTokenService(
 	return &GoogleTokenService{
 		oauth2Config:             oauth2Config,
 		linkedAccountsRepository: linkedAccountsRepository,
-	}, nil
+	}
 }
 
 // GoogleTokenService encapsulates OAuth2 token logic.
@@ -236,4 +221,10 @@ func toGoogleCalendarEvent(event *model.Event) *calendar.Event {
 			TimeZone: event.End.TimeZone,
 		},
 	}
+}
+
+type GoogleConfig struct {
+	ClientID     string `mapstructure:"client_id"`
+	ClientSecret string `mapstructure:"client_secret"`
+	RedirectURL  string `mapstructure:"redirect_url"`
 }

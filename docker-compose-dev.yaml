@@ -21,13 +21,11 @@ services:
     ports:
       - "8080:8080"
     environment:
+      CONFIG_NAME: ".config-dev"
+      CONFIG_PATH: "/etc/schedulr"
       DATABASE_URL: "postgres://postgres:postgres@postgres:5432/schedulr?sslmode=disable"
-      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
-      OPEN_AI_API_KEY: ${OPEN_AI_API_KEY}
-      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY}
-      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
-      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
-      GOOGLE_REDIRECT_URL: ${GOOGLE_REDIRECT_URL}
+    volumes:
+      - .:/etc/schedulr
     depends_on:
       postgres:
         condition: service_healthy

@@ -9,6 +9,7 @@ replace (
 	github.com/ivgag/schedulr/model => ../model
 	github.com/ivgag/schedulr/service => ../service
 	github.com/ivgag/schedulr/storage => ../storage
+	github.com/ivgag/schedulr/tgbot => ../tgbot
 	github.com/ivgag/schedulr/utils => ../utils
 )
 
@@ -16,6 +17,7 @@ require (
 	github.com/gin-gonic/gin v1.10.0
 	github.com/ivgag/schedulr/model v0.0.0
 	github.com/ivgag/schedulr/service v0.0.0
+	github.com/ivgag/schedulr/tgbot v0.0.0
 )
 
 require (
@@ -35,6 +37,7 @@ require (
 	github.com/go-playground/locales v0.14.1 // indirect
 	github.com/go-playground/universal-translator v0.18.1 // indirect
 	github.com/go-playground/validator/v10 v10.24.0 // indirect
+	github.com/go-telegram/bot v1.13.3 // indirect
 	github.com/goccy/go-json v0.10.5 // indirect
 	github.com/gofrs/uuid v4.4.0+incompatible // indirect
 	github.com/google/s2a-go v0.1.9 // indirect

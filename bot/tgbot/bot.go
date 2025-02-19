@@ -22,7 +22,6 @@ package tgbot
 import (
 	"context"
 	"fmt"
-	"os"
 	"sort"
 	"strings"
 	"time"
@@ -36,17 +35,24 @@ import (
 )
 
 // NewBot initializes the Telegram bot with the provided context and services.
-func NewBot(ctx context.Context, userService *service.UserService, eventService *service.EventService) (*Bot, error) {
+func NewBot(
+	ctx context.Context,
+	cfg *TelegramBotConfig,
+	userService *service.UserService,
+	eventService *service.EventService,
+) *Bot {
 	return &Bot{
 		ctx:          ctx,
+		cfg:          cfg,
 		userService:  userService,
 		eventService: eventService,
-	}, nil
+	}
 }
 
 // Bot wraps bot.Bot with service dependencies.
 type Bot struct {
 	ctx          context.Context
+	cfg          *TelegramBotConfig
 	chatBot      *bot.Bot
 	userService  *service.UserService
 	eventService *service.EventService
@@ -61,7 +67,7 @@ func (b *Bot) Start() error {
 		bot.WithDefaultHandler(b.defaultHandler),
 	}
 
-	chatBot, err := bot.New(os.Getenv("TELEGRAM_BOT_TOKEN"), opts...)
+	chatBot, err := bot.New(b.cfg.Token, opts...)
 	if err != nil {
 		return err
 	}
@@ -239,4 +245,9 @@ func debugHandler(format string, args ...interface{}) {
 
 func errorsHandler(err error) {
 	log.Error().Err(err).Msg("Telegram bot error")
+}
+
+type TelegramBotConfig struct {
+	Token string `mapstructure:"token"`
+	URL   string `mapstructure:"url"`
 }
