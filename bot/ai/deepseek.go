@@ -25,6 +25,7 @@ import (
 	"errors"
 
 	"github.com/ivgag/schedulr/model"
+	"github.com/rs/zerolog/log"
 
 	deepseek "github.com/cohesion-org/deepseek-go"
 	constants "github.com/cohesion-org/deepseek-go/constants"
@@ -86,6 +87,10 @@ func (d *DeepSeekAI) ExtractCalendarEvents(message *model.TextMessage) ([]model.
 		var events []model.Event
 		err = json.Unmarshal([]byte(removeJsonFormattingMarkers(responseContent)), &events)
 		if err != nil {
+			log.Error().
+				Str("responseContent", responseContent).
+				Err(err).Msg("Failed to unmarshal DeepSeek response")
+
 			return nil, err
 		}
 

@@ -49,8 +49,8 @@ func extractCalendarEventsPrompt() string {
 	1. Extract key event details:
 		• Title
 		• Description
-		• Start date/time
-		• End date/time
+		• Start date/time in the format "YYYY-MM-DD HH:MM:SS"
+		• End date/time in the format "YYYY-MM-DD HH:MM:SS"
 		• Location
 		• Event type
 	2. Resolve relative dates using the reference date:
@@ -74,10 +74,10 @@ func extractCalendarEventsPrompt() string {
 		"title": "Event Title",
 		"description": "A well-formatted brief description that includes all critical details (price, links, host’s name, etc.).",
 		"start": {
-		"dateTime": "YYYY-MM-DDTHH:MM:SSZ"
+		"dateTime": "YYYY-MM-DD HH:MM:SS"
 		},
 		"end": {
-		"dateTime": "YYYY-MM-DDTHH:MM:SSZ"
+		"dateTime": "YYYY-MM-DD HH:MM:SS"
 		},
 		"location": "Event Location",
 		"eventType": "announcement"

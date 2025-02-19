@@ -108,7 +108,7 @@ func createAutocertManager(restCfg rest.RestConfig) autocert.Manager {
 	return autocert.Manager{
 		Prompt:     autocert.AcceptTOS,
 		HostPolicy: autocert.HostWhitelist(restCfg.Domain),
-		Cache:      autocert.DirCache("certs"),
+		Cache:      autocert.DirCache("/certs"),
 	}
 }
 

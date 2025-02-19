@@ -12,4 +12,5 @@ services:
       CONFIG_PATH: "/etc/schedulr"
     volumes:
       - ./.config-prod.yml:/etc/schedulr/.config-prod.yml
+      - ./certs:/certs
     restart: always

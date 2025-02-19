@@ -19,7 +19,10 @@
 
 package model
 
-import "time"
+import (
+	"strings"
+	"time"
+)
 
 type Event struct {
 	Title       string    `json:"title"`
@@ -32,6 +35,30 @@ type Event struct {
 }
 
 type TimeStamp struct {
-	DateTime time.Time `json:"dateTime"`
-	TimeZone string    `json:"timeZone"`
+	DateTime DateTime `json:"dateTime"`
+	TimeZone string   `json:"timeZone"`
+}
+
+type DateTime time.Time
+
+func (dt DateTime) MarshalJSON() ([]byte, error) {
+	return []byte(`"` + time.Time(dt).Format(time.DateTime) + `"`), nil
+}
+
+func (dt *DateTime) UnmarshalJSON(data []byte) error {
+	s := strings.Trim(string(data), "\"")
+	if s == "" || s == "null" {
+		*dt = DateTime(time.Time{})
+		return nil
+	}
+	t, err := time.Parse(time.DateTime, s)
+	if err != nil {
+		return err
+	}
+	*dt = DateTime(t)
+	return nil
+}
+
+func (dt DateTime) String() string {
+	return time.Time(dt).Format(time.DateTime)
 }

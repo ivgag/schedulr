@@ -25,6 +25,7 @@ import (
 	"errors"
 
 	"github.com/ivgag/schedulr/model"
+	"github.com/rs/zerolog/log"
 	openai "github.com/sashabaranov/go-openai"
 )
 
@@ -85,6 +86,10 @@ func (o *OpenAI) ExtractCalendarEvents(message *model.TextMessage) ([]model.Even
 		var events []model.Event
 		err = json.Unmarshal([]byte(removeJsonFormattingMarkers(responseContent)), &events)
 		if err != nil {
+			log.Error().
+				Str("responseContent", responseContent).
+				Err(err).Msg("Failed to unmarshal OpenAI response")
+
 			return nil, err
 		}
 
