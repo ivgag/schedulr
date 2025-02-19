@@ -10,5 +10,5 @@ services:
       CONFIG_NAME: ".config-prod.yml"
       CONFIG_PATH: "/etc/schedulr"
     volumes:
-      - ./config-prod.yml:/etc/schedulr/.config-prod.yml
+      - ./.config-prod.yml:/etc/schedulr/.config-prod.yml
     restart: always

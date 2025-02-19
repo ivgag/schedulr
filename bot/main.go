@@ -105,10 +105,9 @@ func initAIService(openAICfg *ai.OpenAIConfig, deepseekCfg *ai.DeepseekConfig) *
 }
 
 func createAutocertManager(restCfg rest.RestConfig) autocert.Manager {
-	domain := utils.GetenvOrPanic(restCfg.Domain)
 	return autocert.Manager{
 		Prompt:     autocert.AcceptTOS,
-		HostPolicy: autocert.HostWhitelist(domain),
+		HostPolicy: autocert.HostWhitelist(restCfg.Domain),
 		Cache:      autocert.DirCache("certs"),
 	}
 }
