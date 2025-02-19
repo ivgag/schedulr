@@ -37,7 +37,7 @@ type PgLinkedAccountRepository struct {
 func (p *PgLinkedAccountRepository) Save(account LinkedAccount) error {
 	row := p.db.QueryRow(`
 	INSERT INTO linked_accounts(user_id, provider, access_token, refresh_token, expiry, created_at, updated_at)
-	VALUES($1, $2, $3, $4, $5, timezone('utc', now()), timezone('utc', now())
+	VALUES($1, $2, $3, $4, $5, timezone('utc', now()), timezone('utc', now()))
 	ON CONFLICT (user_id, provider) DO UPDATE
 	SET access_token = EXCLUDED.access_token,
 		refresh_token = EXCLUDED.refresh_token,
