@@ -213,11 +213,11 @@ func toGoogleCalendarEvent(event *model.Event) *calendar.Event {
 		Location:    event.Location,
 		Description: event.Description,
 		Start: &calendar.EventDateTime{
-			DateTime: event.Start.DateTime.Format(time.RFC3339),
+			DateTime: event.Start.DateTime.String(),
 			TimeZone: event.Start.TimeZone,
 		},
 		End: &calendar.EventDateTime{
-			DateTime: event.End.DateTime.Format(time.RFC3339),
+			DateTime: event.End.DateTime.String(),
 			TimeZone: event.End.TimeZone,
 		},
 	}
