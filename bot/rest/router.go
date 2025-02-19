@@ -24,11 +24,15 @@ import (
 
 	"github.com/ivgag/schedulr/model"
 	"github.com/ivgag/schedulr/service"
+	"github.com/ivgag/schedulr/tgbot"
 
 	"github.com/gin-gonic/gin"
 )
 
-func NewRouter(userService *service.UserService) *gin.Engine {
+func NewRouter(
+	tgBotConfig *tgbot.TelegramBotConfig,
+	userService *service.UserService,
+) *gin.Engine {
 	router := gin.Default()
 
 	router.GET("/oauth2callback/google", func(c *gin.Context) {
@@ -41,7 +45,7 @@ func NewRouter(userService *service.UserService) *gin.Engine {
 			return
 		}
 
-		c.Redirect(http.StatusFound, "https://t.me/schedulr_bot")
+		c.Redirect(http.StatusFound, tgBotConfig.URL)
 	})
 
 	return router

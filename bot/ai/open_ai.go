@@ -25,18 +25,12 @@ import (
 	"errors"
 
 	"github.com/ivgag/schedulr/model"
-	"github.com/ivgag/schedulr/utils"
 	openai "github.com/sashabaranov/go-openai"
 )
 
-func NewOpenAI() (*OpenAI, error) {
-	openAiToken, err := utils.GetenvOrError("OPEN_AI_API_KEY")
-	if err != nil {
-		return nil, err
-	}
-
-	client := openai.NewClient(openAiToken)
-	return &OpenAI{client: client}, nil
+func NewOpenAI(config *OpenAIConfig) *OpenAI {
+	client := openai.NewClient(config.APIKey)
+	return &OpenAI{client: client}
 }
 
 type OpenAI struct {
@@ -96,4 +90,8 @@ func (o *OpenAI) ExtractCalendarEvents(message *model.TextMessage) ([]model.Even
 
 		return events, nil
 	}
+}
+
+type OpenAIConfig struct {
+	APIKey string `mapstructure:"api_key"`
 }
