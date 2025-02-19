@@ -53,7 +53,7 @@ func (s *UserService) CreateUser(user *storage.User) error {
 	return s.userRepository.Save(user)
 }
 
-func (s *UserService) GetOAuth2Url(telegramID int64, provider model.Provider) (string, error) {
+func (s *UserService) GetOAuth2Url(telegramID int64, callback func(error), provider model.Provider) (string, error) {
 	user, err := s.userRepository.GetByTelegramID(telegramID)
 	if err != nil {
 		return "", err
@@ -61,7 +61,7 @@ func (s *UserService) GetOAuth2Url(telegramID int64, provider model.Provider) (s
 		return "", errors.New("user not found")
 	}
 
-	return s.tokenServices[provider].GetOAuth2URL(user.ID)
+	return s.tokenServices[provider].GetOAuth2URL(user.ID, callback)
 }
 
 func (s *UserService) LinkAccount(state string, provider model.Provider, code string) error {

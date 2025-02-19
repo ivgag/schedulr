@@ -99,7 +99,17 @@ func (b *Bot) startHandler(ctx context.Context, botAPI *bot.Bot, update *models.
 // linkGoogleAccountHandler returns the OAuth2 URL for linking a Google account.
 func (b *Bot) linkGoogleAccountHandler(ctx context.Context, botAPI *bot.Bot, update *models.Update) {
 	chatID := update.Message.Chat.ID
-	link, err := b.userService.GetOAuth2Url(chatID, model.ProviderGoogle)
+	link, err := b.userService.GetOAuth2Url(
+		chatID,
+		func(err error) {
+			if err != nil {
+				b.sendMessage(ctx, chatID, err.Error(), "")
+			} else {
+				b.sendMessage(ctx, chatID, "Account linked successfully :)", "")
+			}
+		},
+		model.ProviderGoogle,
+	)
 	if err != nil {
 		b.sendMessage(ctx, chatID, err.Error(), "")
 		return

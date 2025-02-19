@@ -37,6 +37,7 @@ import (
 )
 
 var stateTokens = make(map[string]int)
+var callbacks = make(map[string]func(error))
 
 // NewGoogleTokenService creates a new TokenService.
 func NewGoogleTokenService(
@@ -64,7 +65,7 @@ type GoogleTokenService struct {
 }
 
 // GetOAuth2URL returns the URL to redirect users for Google OAuth2 consent.
-func (s *GoogleTokenService) GetOAuth2URL(userID int) (string, error) {
+func (s *GoogleTokenService) GetOAuth2URL(userID int, callback func(error)) (string, error) {
 	uuid, err := uuid.NewV7()
 	if err != nil {
 		return "", err
@@ -72,6 +73,7 @@ func (s *GoogleTokenService) GetOAuth2URL(userID int) (string, error) {
 
 	state := uuid.String()
 	stateTokens[state] = userID
+	callbacks[state] = callback
 
 	return s.oauth2Config.AuthCodeURL(
 		state,
@@ -86,6 +88,7 @@ func (s *GoogleTokenService) ExchangeCodeForToken(state string, code string) err
 	if !found {
 		return fmt.Errorf("state not found: %s", state)
 	}
+	delete(stateTokens, state)
 
 	gToken, err := s.oauth2Config.Exchange(context.Background(), code)
 	if err != nil {
@@ -99,6 +102,10 @@ func (s *GoogleTokenService) ExchangeCodeForToken(state string, code string) err
 		RefreshToken: gToken.RefreshToken,
 		Expiry:       gToken.Expiry.UTC(),
 	})
+
+	callback := callbacks[state]
+	callback(err)
+	delete(callbacks, state)
 
 	return err
 }

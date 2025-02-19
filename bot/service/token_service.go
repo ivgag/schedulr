@@ -20,6 +20,6 @@
 package service
 
 type TokenService interface {
-	GetOAuth2URL(userID int) (string, error)
+	GetOAuth2URL(userID int, callback func(error)) (string, error)
 	ExchangeCodeForToken(state string, code string) error
 }
