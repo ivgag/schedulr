@@ -35,6 +35,10 @@ func NewRouter(
 ) *gin.Engine {
 	router := gin.Default()
 
+	router.GET("/health", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"status": "ok"})
+	})
+
 	router.GET("/oauth2callback/google", func(c *gin.Context) {
 		code := c.Query("code")
 		state := c.Query("state")

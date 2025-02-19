@@ -5,6 +5,7 @@ services:
     network_mode: "host"
     ports:
       - "443:443"
+      - "80:80"
     environment:
       DATABASE_URL: "${DATABASE_URL}"
       CONFIG_NAME: ".config-prod.yml"
