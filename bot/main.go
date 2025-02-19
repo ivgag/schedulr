@@ -1,22 +1,3 @@
-/*
- * Created on Mon Feb 17 2025
- *
- *  Copyright (c) 2025 Ivan Gagarkin
- * SPDX-License-Identifier: EPL-2.0
- *
- * Licensed under the Eclipse Public License - v 2.0 (the "License").
- * You may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *    http://www.eclipse.org/legal/epl-2.0/
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package main
 
 import (
@@ -25,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"time"
 
 	"github.com/ivgag/schedulr/ai"
@@ -37,103 +19,180 @@ import (
 	_ "github.com/jackc/pgx/v4/stdlib"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	"github.com/spf13/viper"
+	"golang.org/x/crypto/acme/autocert"
 )
 
 func main() {
 	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
 
-	// Create a global context with SIGINT signal handling.
+	// Create global context with SIGINT handling.
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()
 
-	connStr := utils.GetenvOrPanic("DATABASE_URL")
-	db, err := sql.Open("pgx", connStr)
+	cfgName, err := utils.GetenvOrError("CONFIG_NAME")
 	if err != nil {
-		panic(err)
+		log.Panic().Err(err).Msg("Failed to get CONFIG_PATH")
 	}
+
+	path, err := utils.GetenvOrError("CONFIG_PATH")
+	if err != nil {
+		log.Panic().Err(err).Msg("Failed to get CONFIG_PATH")
+	}
+
+	cfg, err := LoadConfig(path, cfgName)
+	if err != nil {
+		log.Panic().Err(err).Msg("Failed to load config")
+	}
+
+	db := initDatabase(cfg.Database.URL)
 	defer db.Close()
 
-	if err := db.Ping(); err != nil {
-		panic(err)
-	}
-
-	if err != nil {
-		panic(err)
-	}
-
+	// Initialize repositories.
 	userRepo := storage.NewUserRepository(db)
 	linkedAccountRepo := storage.NewLinkedAccountRepository(db)
 
-	openAi, err := ai.NewOpenAI()
-	if err != nil {
-		panic(err)
-	}
+	// Initialize AI services.
+	aiSvc := initAIService(&cfg.OpenAI, &cfg.Deepseek)
 
-	deepseek, err := ai.NewDeepSeekAI()
-	if err != nil {
-		panic(err)
-	}
-
-	aiService := service.NewAIService([]ai.AI{openAi, deepseek})
-
-	googleTokenService, err := service.NewGoogleTokenService(linkedAccountRepo)
-	if err != nil {
-		panic(err)
-	}
-
+	// Initialize Google token and user services.
+	googleTokenSvc := service.NewGoogleTokenService(&cfg.Google, linkedAccountRepo)
 	tokenServices := map[model.Provider]service.TokenService{
-		model.ProviderGoogle: googleTokenService,
+		model.ProviderGoogle: googleTokenSvc,
 	}
+	userSvc := service.NewUserService(userRepo, tokenServices)
 
-	userService := service.NewUserService(
-		userRepo,
-		tokenServices,
-	)
-
-	googleCalendarService := service.NewGoogleCalendarService(googleTokenService)
+	// Initialize calendar and event services.
+	googleCalendarSvc := service.NewGoogleCalendarService(googleTokenSvc)
 	calendarServices := map[model.Provider]service.CalendarService{
-		model.ProviderGoogle: googleCalendarService,
+		model.ProviderGoogle: googleCalendarSvc,
 	}
+	eventSvc := service.NewEventService(*aiSvc, *userSvc, calendarServices)
 
-	eventService := service.NewEventService(*aiService, *userService, calendarServices)
+	// Start Telegram bot.
+	bot := tgbot.NewBot(ctx, &cfg.TelegramBot, userSvc, eventSvc)
+	go startTelegramBot(bot)
 
-	// Initialize the Telegram bot with the global context.
-	bot, err := tgbot.NewBot(ctx, userService, eventService)
+	// Initialize REST router and server.
+	router := rest.NewRouter(&cfg.TelegramBot, userSvc)
+	srv := initHTTPServer(cfg.Rest, router)
+	go startHTTPServer(srv, cfg.Rest)
+
+	log.Info().
+		Int("port", cfg.Rest.Port).
+		Msg("REST server is running")
+
+	<-ctx.Done()
+	shutdownServer(srv)
+	bot.Stop()
+}
+
+func initDatabase(dbURL string) *sql.DB {
+	db, err := sql.Open("pgx", dbURL)
 	if err != nil {
-		panic(err)
+		log.Panic().Err(err).Msg("Failed to connect to the database")
 	}
-	// Run the bot in a separate goroutine.
-	go func() {
-		if err := bot.Start(); err != nil {
-			log.Error().Err(err).Msg("Telegram bot error")
-		}
-	}()
+	if err = db.Ping(); err != nil {
+		log.Panic().Err(err).Msg("Failed to ping the database")
+	}
+	return db
+}
 
-	// Initialize the REST server.
-	router := rest.NewRouter(userService)
+func initAIService(openAICfg *ai.OpenAIConfig, deepseekCfg *ai.DeepseekConfig) *service.AIService {
+	openAi := ai.NewOpenAI(openAICfg)
+	deepseek := ai.NewDeepSeekAI(deepseekCfg)
+	return service.NewAIService([]ai.AI{openAi, deepseek})
+}
+
+func createAutocertManager(restCfg rest.RestConfig) autocert.Manager {
+	domain := utils.GetenvOrPanic(restCfg.Domain)
+	return autocert.Manager{
+		Prompt:     autocert.AcceptTOS,
+		HostPolicy: autocert.HostWhitelist(domain),
+		Cache:      autocert.DirCache("certs"),
+	}
+}
+
+func initHTTPServer(restCfg rest.RestConfig, router http.Handler) *http.Server {
+	addr := ":" + strconv.Itoa(restCfg.Port)
 	srv := &http.Server{
-		Addr:    ":8080",
+		Addr:    addr,
 		Handler: router,
 	}
-	// Run the REST server in a separate goroutine.
-	go func() {
+	if restCfg.TLS {
+		m := createAutocertManager(restCfg)
+		srv.TLSConfig = m.TLSConfig()
+	}
+	return srv
+}
+
+func startHTTPServer(srv *http.Server, restCfg rest.RestConfig) {
+	if restCfg.TLS {
+		m := createAutocertManager(restCfg)
+		// Start HTTP to HTTPS redirection.
+		go func() {
+			redirectSrv := &http.Server{
+				Addr:    ":80",
+				Handler: m.HTTPHandler(nil),
+			}
+			if err := redirectSrv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+				log.Error().Err(err).Msg("HTTP redirection server error")
+			}
+		}()
+		if err := srv.ListenAndServeTLS("", ""); err != nil && err != http.ErrServerClosed {
+			log.Error().Err(err).Msg("REST server TLS error")
+		}
+	} else {
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Error().Err(err).Msg("REST server error")
 		}
-	}()
-	log.Info().
-		Int("port", 8080).
-		Msg("REST server is running")
+	}
+}
 
-	// Wait for the termination signal.
-	<-ctx.Done()
+func startTelegramBot(bot *tgbot.Bot) {
+	if err := bot.Start(); err != nil {
+		log.Panic().Err(err).Msg("Telegram bot error")
+	}
+}
 
-	// Graceful shutdown of the REST server.
-	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer shutdownCancel()
+func shutdownServer(srv *http.Server) {
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
 	if err := srv.Shutdown(shutdownCtx); err != nil {
 		log.Error().Err(err).Msg("REST server shutdown error")
 	}
+}
 
-	bot.Stop()
+type AppConfig struct {
+	TelegramBot tgbot.TelegramBotConfig `mapstructure:"telegram_bot"`
+	OpenAI      ai.OpenAIConfig         `mapstructure:"openai"`
+	Deepseek    ai.DeepseekConfig       `mapstructure:"deepseek"`
+	Google      service.GoogleConfig    `mapstructure:"google"`
+	Database    storage.DatabaseConfig  `mapstructure:"database"`
+	Rest        rest.RestConfig         `mapstructure:"rest"`
+}
+
+func LoadConfig(
+	path string,
+	configName string,
+) (*AppConfig, error) {
+	viper.AddConfigPath(path)
+	viper.SetConfigName(configName)
+	viper.SetConfigType("yaml")
+
+	if err := viper.ReadInConfig(); err != nil {
+		return nil, err
+	}
+
+	// Expand environment variables in string values
+	for _, key := range viper.AllKeys() {
+		val := viper.GetString(key)
+		viper.Set(key, os.ExpandEnv(val))
+	}
+
+	var cfg AppConfig
+	if err := viper.Unmarshal(&cfg); err != nil {
+		return nil, err
+	}
+	return &cfg, nil
 }

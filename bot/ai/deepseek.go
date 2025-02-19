@@ -25,23 +25,17 @@ import (
 	"errors"
 
 	"github.com/ivgag/schedulr/model"
-	"github.com/ivgag/schedulr/utils"
 
 	deepseek "github.com/cohesion-org/deepseek-go"
 	constants "github.com/cohesion-org/deepseek-go/constants"
 )
 
-func NewDeepSeekAI() (*DeepSeekAI, error) {
-	apiKey, err := utils.GetenvOrError("DEEPSEEK_API_KEY")
-	if err != nil {
-		return nil, err
-	}
-
-	client := deepseek.NewClient(apiKey)
+func NewDeepSeekAI(config *DeepseekConfig) *DeepSeekAI {
+	client := deepseek.NewClient(config.APIKey)
 
 	return &DeepSeekAI{
 		client: client,
-	}, nil
+	}
 }
 
 type DeepSeekAI struct {
@@ -86,8 +80,6 @@ func (d *DeepSeekAI) ExtractCalendarEvents(message *model.TextMessage) ([]model.
 				Retryable:    false,
 			}
 		}
-	} else if err != nil {
-		return nil, err
 	} else {
 		responseContent := response.Choices[0].Message.Content
 
@@ -99,4 +91,8 @@ func (d *DeepSeekAI) ExtractCalendarEvents(message *model.TextMessage) ([]model.
 
 		return events, nil
 	}
+}
+
+type DeepseekConfig struct {
+	APIKey string `mapstructure:"api_key"`
 }
