@@ -64,3 +64,18 @@ jobs:
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+
+      - name: Deploy to DigitalOcean Droplet
+        if: github.event_name != 'pull_request'
+        uses: appleboy/ssh-action@v0.1.5
+        with:
+          host: ${{ secrets.DROPLET_IP }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_KEY }}
+          script: |
+            cd /app/schedulr
+            git pull
+            export DATABASE_URL=${{ secrets.DATABASE_URL }}
+            docker compose -f docker-compose-prod.yaml pull
+            docker stop schedulr-bot
+            docker compose -f docker-compose-prod.yaml up -d

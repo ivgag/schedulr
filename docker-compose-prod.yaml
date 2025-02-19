@@ -1,5 +1,6 @@
 services:
   bot:
+    container_name: schedulr-bot
     image: ghcr.io/ivgag/schedulr:latest
     network_mode: "host"
     ports:
@@ -8,3 +9,6 @@ services:
       DATABASE_URL: "${DATABASE_URL}"
       CONFIG_NAME: ".config-prod.yml"
       CONFIG_PATH: "/etc/schedulr"
+    volumes:
+      - ./config-prod.yml:/etc/schedulr/.config-prod.yml
+    restart: always

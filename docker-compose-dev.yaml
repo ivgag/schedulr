@@ -1,5 +1,6 @@
 services:
   postgres:
+    container_name: schedulr-postgres
     image: postgres:13
     environment:
       POSTGRES_USER: postgres
@@ -15,6 +16,7 @@ services:
       timeout: 10s
 
   bot:
+    container_name: schedulr-bot
     build:
       context: .
       dockerfile: Dockerfile
@@ -25,7 +27,7 @@ services:
       CONFIG_PATH: "/etc/schedulr"
       DATABASE_URL: "postgres://postgres:postgres@postgres:5432/schedulr?sslmode=disable"
     volumes:
-      - .:/etc/schedulr
+      - ./.config-dev.yml:/etc/schedulr/.config-dev.yml
     depends_on:
       postgres:
         condition: service_healthy
