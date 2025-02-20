@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/go-telegram/bot"
 	"github.com/go-telegram/bot/models"
@@ -197,8 +198,8 @@ func formatEventForTelegram(scheduledEvent model.ScheduledEvent) string {
 		message += fmt.Sprintf("%s\n", event.Description)
 	}
 	message += fmt.Sprintf("*When:* %s - %s\n",
-		event.Start.String(),
-		event.End.String(),
+		event.Start.Format(time.DateTime),
+		event.End.Format(time.DateTime),
 	)
 	if event.Location != "" {
 		message += fmt.Sprintf("*Where:* %s\n", event.Location)
