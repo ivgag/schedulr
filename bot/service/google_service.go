@@ -174,7 +174,7 @@ func (c *GoogleCalendarService) CreateEvent(userID int, event *model.Event) (*mo
 		return nil, err
 	}
 
-	calEvent := toGoogleCalendarEvent(event)
+	calEvent := toGoogleCalendarEvent(event, cal.TimeZone)
 
 	link, err := c.insertEventWithRetries(srv, calEvent)
 	if err != nil {
@@ -214,18 +214,18 @@ func (c *GoogleCalendarService) insertEventWithRetries(
 	)
 }
 
-func toGoogleCalendarEvent(event *model.Event) *calendar.Event {
+func toGoogleCalendarEvent(event *model.Event, timeZone string) *calendar.Event {
 	return &calendar.Event{
 		Summary:     event.Title,
 		Location:    event.Location,
 		Description: event.Description,
 		Start: &calendar.EventDateTime{
-			DateTime: event.Start.DateTime.Format(time.DateTime),
-			TimeZone: event.Start.TimeZone,
+			DateTime: event.Start.DateTime.Format(time.RFC3339),
+			TimeZone: timeZone,
 		},
 		End: &calendar.EventDateTime{
-			DateTime: event.End.DateTime.Format(time.DateTime),
-			TimeZone: event.End.TimeZone,
+			DateTime: event.End.DateTime.Format(time.RFC3339),
+			TimeZone: timeZone,
 		},
 	}
 }
