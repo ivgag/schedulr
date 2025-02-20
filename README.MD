@@ -10,33 +10,3 @@ Schedulr is a Telegram bot that lets users forward messages, extract event detai
 
 ## License
 This project is licensed under the EPL-2.0 License. See the [LICENSE](LICENSE) file for details.
-
-## Installation
-
-### Prerequisites
-- Docker and Docker Compose must be installed.
-
-### Setup
-
-1. **Clone the repository:**
-
-    ```bash
-    git clone git@github.com:ivgag/schedulr.git
-    cd schedulr
-    ```
-2. **Configure environment variables:**
-
-    ```bash
-    export TELEGRAM_BOT_TOKEN=""
-    export OPEN_AI_API_KEY=""
-    export DEEPSEEK_API_KEY=""
-    export GOOGLE_CLIENT_ID=""
-    export GOOGLE_CLIENT_SECRET=""
-    export GOOGLE_REDIRECT_URL=""
-    ```
-3. **Build and run the containers:**
-    
-    ```bash
-    docker compose build
-    docker compose up
-    ```

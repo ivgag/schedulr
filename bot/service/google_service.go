@@ -174,7 +174,10 @@ func (c *GoogleCalendarService) CreateEvent(userID int, event *model.Event) (mod
 		return model.ScheduledEvent{}, err
 	}
 
-	calEvent := toGoogleCalendarEvent(event, cal.TimeZone)
+	calEvent, err := toGoogleCalendarEvent(event, cal.TimeZone)
+	if err != nil {
+		return model.ScheduledEvent{}, err
+	}
 
 	link, err := c.insertEventWithRetries(srv, calEvent)
 	if err != nil {
@@ -214,24 +217,29 @@ func (c *GoogleCalendarService) insertEventWithRetries(
 	)
 }
 
-func toGoogleCalendarEvent(event *model.Event, timeZone string) *calendar.Event {
+func toGoogleCalendarEvent(event *model.Event, timeZone string) (*calendar.Event, error) {
 	return &calendar.Event{
 		Summary:     event.Title,
 		Location:    event.Location,
 		Description: event.Description,
 		Start: &calendar.EventDateTime{
-			DateTime: event.Start.Format(time.RFC3339),
+			DateTime: formatAsZeroTZ(event.Start),
 			TimeZone: timeZone,
 		},
 		End: &calendar.EventDateTime{
-			DateTime: event.End.Format(time.RFC3339),
+			DateTime: formatAsZeroTZ(event.End),
 			TimeZone: timeZone,
 		},
-	}
+	}, nil
 }
 
 type GoogleConfig struct {
 	ClientID     string `mapstructure:"client_id"`
 	ClientSecret string `mapstructure:"client_secret"`
 	RedirectURL  string `mapstructure:"redirect_url"`
+}
+
+func formatAsZeroTZ(t time.Time) string {
+	return fmt.Sprintf("%04d-%02d-%02dT%02d:%02d:%02dZ",
+		t.Year(), int(t.Month()), t.Day(), t.Hour(), t.Minute(), t.Second())
 }
