@@ -42,7 +42,7 @@ func (e *Event) MarshalJSON() ([]byte, error) {
 	type Alias Event
 	return json.Marshal(&struct {
 		*Alias
-		Start string `json:"stamp"`
+		Start string `json:"start"`
 		End   string `json:"end"`
 	}{
 		Alias: (*Alias)(e),
@@ -55,7 +55,7 @@ func (e *Event) UnmarshalJSON(data []byte) error {
 	type Alias Event
 	aux := &struct {
 		*Alias
-		Start string `json:"stamp"`
+		Start string `json:"start"`
 		End   string `json:"end"`
 	}{
 		Alias: (*Alias)(e),

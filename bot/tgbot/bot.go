@@ -88,7 +88,12 @@ func (b *Bot) Stop() {
 func (b *Bot) startHandler(ctx context.Context, botAPI *bot.Bot, update *models.Update) {
 	chatID := update.Message.Chat.ID
 
-	if err := b.userService.CreateUser(&storage.User{TelegramID: chatID}); err != nil {
+	user := storage.User{
+		TelegramID: chatID,
+		Username:   update.Message.From.Username,
+	}
+
+	if err := b.userService.CreateUser(&user); err != nil {
 		b.sendMessage(ctx, chatID, err.Error(), "")
 		return
 	}

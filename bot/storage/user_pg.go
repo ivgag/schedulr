@@ -35,8 +35,8 @@ func NewUserRepository(db *sql.DB) UserRepository {
 
 func (r *PgUserRepository) GetByID(id int) (User, error) {
 	var user User
-	query := "SELECT id, telegram_id FROM users WHERE id = $1"
-	err := r.db.QueryRow(query, id).Scan(&user.ID, &user.TelegramID)
+	query := "SELECT id, telegram_id, username FROM users WHERE id = $1"
+	err := r.db.QueryRow(query, id).Scan(&user.ID, &user.TelegramID, &user.Username)
 
 	if err != nil && err.Error() == noRowsError {
 		return User{}, model.NotFoundError{Message: "user not found"}
@@ -50,8 +50,8 @@ func (r *PgUserRepository) GetByID(id int) (User, error) {
 // GetByTelegramID implements UserRepository.
 func (r *PgUserRepository) GetByTelegramID(telegramID int64) (User, error) {
 	var user User
-	query := "SELECT id, telegram_id FROM users WHERE telegram_id = $1"
-	err := r.db.QueryRow(query, telegramID).Scan(&user.ID, &user.TelegramID)
+	query := "SELECT id, telegram_id, username FROM users WHERE telegram_id = $1"
+	err := r.db.QueryRow(query, telegramID).Scan(&user.ID, &user.TelegramID, &user.Username)
 
 	if err != nil && err.Error() == noRowsError {
 		return User{}, model.NotFoundError{Message: "user not found"}
@@ -64,11 +64,11 @@ func (r *PgUserRepository) GetByTelegramID(telegramID int64) (User, error) {
 
 func (r *PgUserRepository) Save(user *User) error {
 	query := `
-	INSERT INTO users(telegram_id)
-	VALUES($1)
+	INSERT INTO users(telegram_id, username)
+	VALUES($1, $2)
 	ON CONFLICT (telegram_id)
-	DO UPDATE SET telegram_id = users.telegram_id
+	DO UPDATE SET telegram_id = users.telegram_id, username = EXCLUDED.username
 	RETURNING id;
 	`
-	return r.db.QueryRow(query, user.TelegramID).Scan(&user.ID)
+	return r.db.QueryRow(query, user.TelegramID, user.Username).Scan(&user.ID)
 }
