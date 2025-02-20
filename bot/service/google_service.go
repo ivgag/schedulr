@@ -214,20 +214,47 @@ func (c *GoogleCalendarService) insertEventWithRetries(
 	)
 }
 
-func toGoogleCalendarEvent(event *model.Event, timeZone string) *calendar.Event {
+func toGoogleCalendarEvent(event *model.Event, timeZone string) (*calendar.Event, error) {
+	loc, err := time.LoadLocation(timeZone)
+	if err != nil {
+		return nil, err
+	}
+
+	start := time.Date(
+		event.Start.Year(),
+		event.Start.Month(),
+		event.Start.Day(),
+		event.Start.Hour(),
+		event.Start.Minute(),
+		0,
+		0,
+		loc,
+	)
+
+	end := time.Date(
+		event.End.Year(),
+		event.End.Month(),
+		event.End.Day(),
+		event.End.Hour(),
+		event.End.Minute(),
+		0,
+		0,
+		loc,
+	)
+
 	return &calendar.Event{
 		Summary:     event.Title,
 		Location:    event.Location,
 		Description: event.Description,
 		Start: &calendar.EventDateTime{
-			DateTime: event.Start.Format(time.RFC3339),
+			DateTime: start.Format(time.RFC3339),
 			TimeZone: timeZone,
 		},
 		End: &calendar.EventDateTime{
-			DateTime: event.End.Format(time.RFC3339),
+			DateTime: end.Format(time.RFC3339),
 			TimeZone: timeZone,
 		},
-	}
+	}, nil
 }
 
 type GoogleConfig struct {
