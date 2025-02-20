@@ -47,7 +47,7 @@ func (d *DeepSeekAI) Provider() AIProvider {
 	return ProviderDeepSeek
 }
 
-func (d *DeepSeekAI) ExtractCalendarEvents(message *model.TextMessage) ([]model.Event, model.Error) {
+func (d *DeepSeekAI) ExtractCalendarEvents(message *model.TextMessage) (AiResponse[[]model.Event], model.Error) {
 	request := &deepseek.ChatCompletionRequest{
 		Model: deepseek.DeepSeekChat,
 		Messages: []deepseek.ChatCompletionMessage{
@@ -62,20 +62,20 @@ func (d *DeepSeekAI) ExtractCalendarEvents(message *model.TextMessage) ([]model.
 	ctx := context.Background()
 	response, err := d.client.CreateChatCompletion(ctx, request)
 	if err != nil {
-		return nil, err
+		return AiResponse[[]model.Event]{}, err
 	}
 
 	e := &deepseek.APIError{}
 	if errors.As(err, &e) {
 		switch e.StatusCode {
 		case 500, 503:
-			return nil, ApiError{
+			return AiResponse[[]model.Event]{}, ApiError{
 				Message:      e.Message,
 				ResponseCode: e.StatusCode,
 				Retryable:    true,
 			}
 		default:
-			return nil, ApiError{
+			return AiResponse[[]model.Event]{}, ApiError{
 				Message:      e.Message,
 				ResponseCode: e.StatusCode,
 				Retryable:    false,
@@ -91,10 +91,12 @@ func (d *DeepSeekAI) ExtractCalendarEvents(message *model.TextMessage) ([]model.
 				Str("responseContent", responseContent).
 				Err(err).Msg("Failed to unmarshal DeepSeek response")
 
-			return nil, err
+			return AiResponse[[]model.Event]{}, err
 		}
 
-		return events, nil
+		return AiResponse[[]model.Event]{
+			Result: events,
+		}, nil
 	}
 }
 

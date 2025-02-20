@@ -156,22 +156,22 @@ func NewGoogleCalendarService(tokenService *GoogleTokenService) *GoogleCalendarS
 }
 
 // CreateEvent creates a new calendar event using the provided token and event data.
-func (c *GoogleCalendarService) CreateEvent(userID int, event *model.Event) (*model.Event, error) {
+func (c *GoogleCalendarService) CreateEvent(userID int, event *model.Event) (model.ScheduledEvent, error) {
 	client, err := c.tokenService.ClientForUser(userID)
 	if err != nil {
-		return nil, err
+		return model.ScheduledEvent{}, err
 	}
 
 	ctx := context.Background()
 
 	srv, err := calendar.NewService(ctx, option.WithHTTPClient(client))
 	if err != nil {
-		return nil, err
+		return model.ScheduledEvent{}, err
 	}
 
 	cal, err := srv.Calendars.Get("primary").Do()
 	if err != nil {
-		return nil, err
+		return model.ScheduledEvent{}, err
 	}
 
 	calEvent := toGoogleCalendarEvent(event, cal.TimeZone)
@@ -183,14 +183,14 @@ func (c *GoogleCalendarService) CreateEvent(userID int, event *model.Event) (*mo
 			Err(err).
 			Msg("Failed to create event")
 
-		return nil, err
+		return model.ScheduledEvent{}, err
 	}
 
-	event.Link = link
-	event.Start.TimeZone = cal.TimeZone
-	event.End.TimeZone = cal.TimeZone
+	return model.ScheduledEvent{
+		Event: *event,
+		Link:  link,
+	}, nil
 
-	return event, nil
 }
 
 func (c *GoogleCalendarService) insertEventWithRetries(
@@ -220,11 +220,11 @@ func toGoogleCalendarEvent(event *model.Event, timeZone string) *calendar.Event 
 		Location:    event.Location,
 		Description: event.Description,
 		Start: &calendar.EventDateTime{
-			DateTime: event.Start.DateTime.Format(time.RFC3339),
+			DateTime: event.Start.Format(time.RFC3339),
 			TimeZone: timeZone,
 		},
 		End: &calendar.EventDateTime{
-			DateTime: event.End.DateTime.Format(time.RFC3339),
+			DateTime: event.End.Format(time.RFC3339),
 			TimeZone: timeZone,
 		},
 	}

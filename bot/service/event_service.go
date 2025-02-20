@@ -41,7 +41,7 @@ type EventService struct {
 	calendarServices map[model.Provider]CalendarService
 }
 
-func (s *EventService) CreateEventsFromUserMessage(telegramID int64, message model.TextMessage) ([]model.Event, error) {
+func (s *EventService) CreateEventsFromUserMessage(telegramID int64, message model.TextMessage) ([]model.ScheduledEvent, error) {
 	user, err := s.userService.GetUserByTelegramID(telegramID)
 	if err != nil {
 		return nil, err
@@ -52,12 +52,14 @@ func (s *EventService) CreateEventsFromUserMessage(telegramID int64, message mod
 		return nil, err
 	}
 
+	var scheduledEvents []model.ScheduledEvent = make([]model.ScheduledEvent, len(events))
 	for i := range events {
-		_, err := s.calendarServices[model.ProviderGoogle].CreateEvent(user.ID, &events[i])
+		scheduledEvent, err := s.calendarServices[model.ProviderGoogle].CreateEvent(user.ID, &events[i])
 		if err != nil {
 			return nil, err
 		}
+		scheduledEvents[i] = scheduledEvent
 	}
 
-	return events, nil
+	return scheduledEvents, nil
 }

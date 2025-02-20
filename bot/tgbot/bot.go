@@ -184,21 +184,22 @@ func (b *Bot) sendMessage(ctx context.Context, chatID int64, text string, parseM
 }
 
 // formatEventForTelegram returns a formatted string representing the event.
-func formatEventForTelegram(e model.Event) string {
-	message := fmt.Sprintf("*%s*\n", e.Title)
-	if e.Description != "" {
-		message += fmt.Sprintf("%s\n", e.Description)
+func formatEventForTelegram(scheduledEvent model.ScheduledEvent) string {
+	event := scheduledEvent.Event
+
+	message := fmt.Sprintf("*%s*\n", event.Title)
+	if event.Description != "" {
+		message += fmt.Sprintf("%s\n", event.Description)
 	}
-	message += fmt.Sprintf("*When:* %s - %s (%s)\n",
-		e.Start.DateTime.String(),
-		e.End.DateTime.String(),
-		e.Start.TimeZone,
+	message += fmt.Sprintf("*When:* %s - %s\n",
+		event.Start.String(),
+		event.End.String(),
 	)
-	if e.Location != "" {
-		message += fmt.Sprintf("*Where:* %s\n", e.Location)
+	if event.Location != "" {
+		message += fmt.Sprintf("*Where:* %s\n", event.Location)
 	}
-	if e.Link != "" {
-		message += fmt.Sprintf("[More details](%s)\n", e.Link)
+	if scheduledEvent.Link != "" {
+		message += fmt.Sprintf("[More details](%s)\n", scheduledEvent.Link)
 	}
 	return message
 }

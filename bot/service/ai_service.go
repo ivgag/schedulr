@@ -52,41 +52,46 @@ func (s *AIService) ExtractCalendarEvents(message *model.TextMessage) ([]model.E
 			Str("provider", string(ai.Provider())).
 			Msg("Extracting events with AI provider")
 
-		events, err := s.extractEventsWithRetires(message, ai)
+		response, err := s.extractEventsWithRetires(message, ai)
 		if err != nil {
 			log.Warn().
 				Str("provider", string(ai.Provider())).
 				Err(err).
 				Msg("AI provider failed to extract events from the message")
-		} else if len(events) == 0 {
+		}
+
+		if len(response.Result) == 0 {
 			log.Warn().
 				Str("provider", string(ai.Provider())).
 				Interface("message", message).
+				Str("explanation", response.Explanation).
 				Msg("AI provider extracted no events from the message")
-
 			return nil, model.ErrorForMessage("No events were extracted from the message")
 		} else {
 			log.Debug().
 				Str("provider", string(ai.Provider())).
 				Msg("AI provider successfully extracted events from the message")
 
-			return events, nil
+			return response.Result, nil
 		}
 	}
 
 	return nil, model.ErrorForMessage("No AI provider was able to extract events from the message")
 }
 
-func (s *AIService) extractEventsWithRetires(message *model.TextMessage, agent ai.AI) ([]model.Event, model.Error) {
-	operation := func() ([]model.Event, error) {
+func (s *AIService) extractEventsWithRetires(
+	message *model.TextMessage,
+	agent ai.AI,
+) (ai.AiResponse[[]model.Event], model.Error) {
+	operation := func() (ai.AiResponse[[]model.Event], error) {
 		var apiError = ai.ApiError{}
-		events, err := agent.ExtractCalendarEvents(message)
+		response, err := agent.ExtractCalendarEvents(message)
 		if err == nil {
-			return events, nil
+			return response, nil
 		} else if errors.As(err, &apiError) && apiError.Retryable {
-			return nil, err
+			return ai.AiResponse[[]model.Event]{}, err
 		} else {
-			return events, backoff.Permanent(err)
+			return response, backoff.Permanent(err)
 		}
 	}
 
@@ -98,7 +103,7 @@ func (s *AIService) extractEventsWithRetires(message *model.TextMessage, agent a
 	)
 
 	if err != nil {
-		return nil, err
+		return ai.AiResponse[[]model.Event]{}, err
 	}
 	return events, nil
 }

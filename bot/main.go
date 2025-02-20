@@ -98,10 +98,10 @@ func initDatabase(dbURL string) *sql.DB {
 	return db
 }
 
-func initAIService(openAICfg *ai.OpenAIConfig, deepseekCfg *ai.DeepseekConfig) *service.AIService {
+func initAIService(openAICfg *ai.OpenAIConfig, _ *ai.DeepseekConfig) *service.AIService {
 	openAi := ai.NewOpenAI(openAICfg)
-	deepseek := ai.NewDeepSeekAI(deepseekCfg)
-	return service.NewAIService([]ai.AI{openAi, deepseek})
+	// deepseek := ai.NewDeepSeekAI(deepseekCfg)
+	return service.NewAIService([]ai.AI{openAi})
 }
 
 func createAutocertManager(restCfg rest.RestConfig) autocert.Manager {

@@ -20,45 +20,50 @@
 package model
 
 import (
-	"strings"
+	"encoding/json"
 	"time"
 )
+
+type ScheduledEvent struct {
+	Event Event  `json:"event"`
+	Link  string `json:"link"`
+}
 
 type Event struct {
 	Title       string    `json:"title"`
 	Description string    `json:"description"`
-	Start       TimeStamp `json:"start"`
-	End         TimeStamp `json:"end"`
+	Start       time.Time `json:"start"`
+	End         time.Time `json:"end"`
 	Location    string    `json:"location"`
 	EventType   string    `json:"eventType"`
-	Link        string    `json:"link"`
 }
 
-type TimeStamp struct {
-	DateTime time.Time `json:"dateTime"`
-	TimeZone string    `json:"timeZone"`
+func (e *Event) MarshalJSON() ([]byte, error) {
+	type Alias Event
+	return json.Marshal(&struct {
+		*Alias
+		Start string `json:"stamp"`
+		End   string `json:"end"`
+	}{
+		Alias: (*Alias)(e),
+		Start: e.Start.Format(time.DateTime),
+		End:   e.End.Format(time.DateTime),
+	})
 }
 
-type DateTime time.Time
-
-func (dt DateTime) MarshalJSON() ([]byte, error) {
-	return []byte(`"` + time.Time(dt).Format(time.DateTime) + `"`), nil
-}
-
-func (dt *DateTime) UnmarshalJSON(data []byte) error {
-	s := strings.Trim(string(data), "\"")
-	if s == "" || s == "null" {
-		*dt = DateTime(time.Time{})
-		return nil
+func (e *Event) UnmarshalJSON(data []byte) error {
+	type Alias Event
+	aux := &struct {
+		*Alias
+		Start string `json:"stamp"`
+		End   string `json:"end"`
+	}{
+		Alias: (*Alias)(e),
 	}
-	t, err := time.Parse(time.DateTime, s)
-	if err != nil {
+	if err := json.Unmarshal(data, &aux); err != nil {
 		return err
 	}
-	*dt = DateTime(t)
+	e.Start, _ = time.Parse(time.DateTime, aux.Start)
+	e.End, _ = time.Parse(time.DateTime, aux.End)
 	return nil
-}
-
-func (dt DateTime) String() string {
-	return time.Time(dt).Format(time.DateTime)
 }

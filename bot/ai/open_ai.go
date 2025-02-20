@@ -31,10 +31,14 @@ import (
 
 func NewOpenAI(config *OpenAIConfig) *OpenAI {
 	client := openai.NewClient(config.APIKey)
-	return &OpenAI{client: client}
+	return &OpenAI{
+		config: config,
+		client: client,
+	}
 }
 
 type OpenAI struct {
+	config *OpenAIConfig
 	client *openai.Client
 }
 
@@ -42,16 +46,17 @@ func (o *OpenAI) Provider() AIProvider {
 	return ProviderOpenAI
 }
 
-func (o *OpenAI) ExtractCalendarEvents(message *model.TextMessage) ([]model.Event, model.Error) {
+func (o *OpenAI) ExtractCalendarEvents(message *model.TextMessage) (AiResponse[[]model.Event], model.Error) {
 	userInput := messagesToText([]model.TextMessage{*message})
 
-	var response AiResponseDto[[]AiEventDto]
-	schema, err := jsonschema.GenerateSchemaForType(response)
+	var response AiResponse[[]model.Event]
+	var schema AiResponse[[]EventSchema]
+	responseSchema, err := jsonschema.GenerateSchemaForType(schema)
 
 	resp, err := o.client.CreateChatCompletion(
 		context.Background(),
 		openai.ChatCompletionRequest{
-			Model: openai.GPT4oMini,
+			Model: o.config.Model,
 			Messages: []openai.ChatCompletionMessage{
 				{
 					Role:    openai.ChatMessageRoleSystem,
@@ -66,7 +71,7 @@ func (o *OpenAI) ExtractCalendarEvents(message *model.TextMessage) ([]model.Even
 				Type: openai.ChatCompletionResponseFormatTypeJSONSchema,
 				JSONSchema: &openai.ChatCompletionResponseFormatJSONSchema{
 					Name:   "extracted_events",
-					Schema: schema,
+					Schema: responseSchema,
 					Strict: true,
 				},
 			},
@@ -77,40 +82,36 @@ func (o *OpenAI) ExtractCalendarEvents(message *model.TextMessage) ([]model.Even
 	if errors.As(err, &e) {
 		switch e.HTTPStatusCode {
 		case 500, 503:
-			return nil, ApiError{
+			return AiResponse[[]model.Event]{}, ApiError{
 				Message:      e.Message,
 				ResponseCode: e.HTTPStatusCode,
 				Retryable:    true,
 			}
 		default:
-			return nil, ApiError{
+			return AiResponse[[]model.Event]{}, ApiError{
 				Message:      e.Message,
 				ResponseCode: e.HTTPStatusCode,
 				Retryable:    false,
 			}
 		}
 	} else if err != nil {
-		return nil, err
+		return AiResponse[[]model.Event]{}, err
 	} else {
 		responseContent := resp.Choices[0].Message.Content
 
-		err = schema.Unmarshal(responseContent, &response)
+		err = responseSchema.Unmarshal(responseContent, &response)
 		if err != nil {
 			log.Error().
+				Interface("message", message).
 				Str("responseContent", responseContent).
 				Err(err).Msg("Failed to unmarshal OpenAI response")
 		}
 
-		var err error
-		events := make([]model.Event, len(response.Result))
-		for i, aiEvent := range response.Result {
-			events[i], err = aiEvent.ToModelEvent()
-		}
-
-		return events, err
+		return response, err
 	}
 }
 
 type OpenAIConfig struct {
 	APIKey string `mapstructure:"api_key"`
+	Model  string `mapstructure:"model"`
 }

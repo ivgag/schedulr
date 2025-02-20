@@ -35,7 +35,7 @@ const (
 )
 
 type AI interface {
-	ExtractCalendarEvents(message *model.TextMessage) ([]model.Event, model.Error)
+	ExtractCalendarEvents(message *model.TextMessage) (AiResponse[[]model.Event], model.Error)
 	Provider() AIProvider
 }
 
@@ -111,34 +111,16 @@ func messagesToText(messages []model.TextMessage) string {
 	return sb.String()
 }
 
-type AiResponseDto[T any] struct {
+type AiResponse[T any] struct {
 	Result      T      `json:"result"`
 	Explanation string `json:"explanation"`
 }
 
-type AiEventDto struct {
+type EventSchema struct {
 	Title       string `json:"title"`
 	Description string `json:"description"`
 	Start       string `json:"start"`
 	End         string `json:"end"`
 	Location    string `json:"location"`
 	EventType   string `json:"eventType"`
-}
-
-func (e *AiEventDto) ToModelEvent() (model.Event, error) {
-	start, err := time.Parse(time.DateTime, e.Start)
-	end, err := time.Parse(time.DateTime, e.End)
-
-	return model.Event{
-		Title:       e.Title,
-		Description: e.Description,
-		Start: model.TimeStamp{
-			DateTime: start,
-		},
-		End: model.TimeStamp{
-			DateTime: end,
-		},
-		Location:  e.Location,
-		EventType: e.EventType,
-	}, err
 }
