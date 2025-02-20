@@ -41,48 +41,47 @@ type AI interface {
 
 func extractCalendarEventsPrompt() string {
 	return fmt.Sprintf(`
-	You are a calendar assistant that extracts event details from user input 
-	(which may include announcements, tickets, ads, and other related content) and 
-	converts them into JSON for creating calendar events (e.g., in Google, Microsoft, Yandex).
+	You are a calendar assistant that extracts event details from user input—such as announcements, 
+	tickets, ads, or related content—and converts them into a JSON array for creating calendar events 
+	(e.g., in Google, Microsoft, Yandex).
 
-	Your Tasks
-	1. Extract key event details:
-		• Title
-		• Description
-		• Start date/time in the format "YYYY-MM-DD HH:MM:SS"
-		• End date/time in the format "YYYY-MM-DD HH:MM:SS"
-		• Location
-		• Event type
-	2. Resolve relative dates using the reference date:
-		> "Today is %s"
-	3. If an event’s details cannot be fully extracted, ignore that event.
-	4. If no event details are found, return an empty JSON array.
+	Tasks
+		1.	Extract Key Event Details:
+			•	Title
+			•	Description
+			•	Start date/time
+			•	End date/time
+			•	Location
+			•	Event type
+			•	Price
+			•   Links
+			• 	Host’s name
+		2.	Resolve Relative Dates:
+			Use the provided reference date. For example:
+			"Today is %s"
+		3.	Handling Incomplete Data:
+			•	At a minimum, extract the title, start time, and end time.
+			•	If there is no information about the end time, use a default duration:
+			•	If you know the usual duration for the event type, use that; otherwise, assume a one-hour duration.
+		4.	Fallback:
+			•	If no event details are found in the input, return an empty JSON array.
+			•   Write a brief explanation of the result.
+		5.	Output Requirement:
 
 	Input Format
-	• The user input may include Telegram messages, either single or multiple messages.
-	• Messages may be:
-		• Forwarded from an events channel in the user’s city.
-		• A forwarded conversation between users.
-		• Forwarded messages plus a command to the bot.
-	• You need to parse all incoming text to find any event-related information.
+		•	The input may include single or multiple Telegram messages.
+		•	Messages can be:
+		•	Forwarded from an events channel in the user’s city.
+		•	A forwarded conversation between users.
+		•	A combination of forwarded messages and commands to the bot.
+		•	Parse all incoming text to identify any event-related information.
 
-	Output format
-	Your output must be a JSON array. Each event is represented as an object of the form:
-
-	[
-	{
-		"title": "Event Title",
-		"description": "A well-formatted brief description that includes all critical details (price, links, host’s name, etc.).",
-		"start": {
-		"dateTime": "YYYY-MM-DD HH:MM:SS"
-		},
-		"end": {
-		"dateTime": "YYYY-MM-DD HH:MM:SS"
-		},
-		"location": "Event Location",
-		"eventType": "announcement"
-	}
-	]
+	Output Format
+		•	Ensure that all extracted dates and times are formatted according to "YYYY-MM-DD HH:MM:SS".
+		•	Ensure that the event type is one of the following: "event", "reminder", "meeting", "birthday", "holiday", "other".
+		•	Ensure that the price is a number or "free".
+		•	Ensure that the links are valid URLs.
+		•	Ensure that the output includes an explanation of the result.
 	`,
 		time.Now().Format(time.DateTime),
 	)
@@ -110,4 +109,36 @@ func messagesToText(messages []model.TextMessage) string {
 	}
 
 	return sb.String()
+}
+
+type AiResponseDto[T any] struct {
+	Result      T      `json:"result"`
+	Explanation string `json:"explanation"`
+}
+
+type AiEventDto struct {
+	Title       string `json:"title"`
+	Description string `json:"description"`
+	Start       string `json:"start"`
+	End         string `json:"end"`
+	Location    string `json:"location"`
+	EventType   string `json:"eventType"`
+}
+
+func (e *AiEventDto) ToModelEvent() (model.Event, error) {
+	start, err := time.Parse(time.DateTime, e.Start)
+	end, err := time.Parse(time.DateTime, e.End)
+
+	return model.Event{
+		Title:       e.Title,
+		Description: e.Description,
+		Start: model.TimeStamp{
+			DateTime: start,
+		},
+		End: model.TimeStamp{
+			DateTime: end,
+		},
+		Location:  e.Location,
+		EventType: e.EventType,
+	}, err
 }

@@ -53,16 +53,24 @@ func (s *AIService) ExtractCalendarEvents(message *model.TextMessage) ([]model.E
 			Msg("Extracting events with AI provider")
 
 		events, err := s.extractEventsWithRetires(message, ai)
-		if err == nil {
-			log.Debug().
-				Str("provider", string(ai.Provider())).
-				Msg("AI provider successfully extracted events from the message")
-			return events, nil
-		} else {
+		if err != nil {
 			log.Warn().
 				Str("provider", string(ai.Provider())).
 				Err(err).
 				Msg("AI provider failed to extract events from the message")
+		} else if len(events) == 0 {
+			log.Warn().
+				Str("provider", string(ai.Provider())).
+				Interface("message", message).
+				Msg("AI provider extracted no events from the message")
+
+			return nil, model.ErrorForMessage("No events were extracted from the message")
+		} else {
+			log.Debug().
+				Str("provider", string(ai.Provider())).
+				Msg("AI provider successfully extracted events from the message")
+
+			return events, nil
 		}
 	}
 

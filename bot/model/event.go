@@ -35,8 +35,8 @@ type Event struct {
 }
 
 type TimeStamp struct {
-	DateTime DateTime `json:"dateTime"`
-	TimeZone string   `json:"timeZone"`
+	DateTime time.Time `json:"dateTime"`
+	TimeZone string    `json:"timeZone"`
 }
 
 type DateTime time.Time

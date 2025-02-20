@@ -15,7 +15,6 @@ require (
 	github.com/ivgag/schedulr/ai v0.0.0
 	github.com/ivgag/schedulr/model v0.0.0
 	github.com/ivgag/schedulr/storage v0.0.0
-	github.com/ivgag/schedulr/utils v0.0.0
 	github.com/rs/zerolog v1.33.0
 	golang.org/x/oauth2 v0.26.0
 	google.golang.org/api v0.220.0

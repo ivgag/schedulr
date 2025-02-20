@@ -21,12 +21,12 @@ package ai
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 
 	"github.com/ivgag/schedulr/model"
 	"github.com/rs/zerolog/log"
 	openai "github.com/sashabaranov/go-openai"
+	"github.com/sashabaranov/go-openai/jsonschema"
 )
 
 func NewOpenAI(config *OpenAIConfig) *OpenAI {
@@ -45,10 +45,13 @@ func (o *OpenAI) Provider() AIProvider {
 func (o *OpenAI) ExtractCalendarEvents(message *model.TextMessage) ([]model.Event, model.Error) {
 	userInput := messagesToText([]model.TextMessage{*message})
 
+	var response AiResponseDto[[]AiEventDto]
+	schema, err := jsonschema.GenerateSchemaForType(response)
+
 	resp, err := o.client.CreateChatCompletion(
 		context.Background(),
 		openai.ChatCompletionRequest{
-			Model: openai.GPT4,
+			Model: openai.GPT4oMini,
 			Messages: []openai.ChatCompletionMessage{
 				{
 					Role:    openai.ChatMessageRoleSystem,
@@ -57,6 +60,14 @@ func (o *OpenAI) ExtractCalendarEvents(message *model.TextMessage) ([]model.Even
 				{
 					Role:    openai.ChatMessageRoleUser,
 					Content: userInput,
+				},
+			},
+			ResponseFormat: &openai.ChatCompletionResponseFormat{
+				Type: openai.ChatCompletionResponseFormatTypeJSONSchema,
+				JSONSchema: &openai.ChatCompletionResponseFormatJSONSchema{
+					Name:   "extracted_events",
+					Schema: schema,
+					Strict: true,
 				},
 			},
 		},
@@ -83,17 +94,20 @@ func (o *OpenAI) ExtractCalendarEvents(message *model.TextMessage) ([]model.Even
 	} else {
 		responseContent := resp.Choices[0].Message.Content
 
-		var events []model.Event
-		err = json.Unmarshal([]byte(removeJsonFormattingMarkers(responseContent)), &events)
+		err = schema.Unmarshal(responseContent, &response)
 		if err != nil {
 			log.Error().
 				Str("responseContent", responseContent).
 				Err(err).Msg("Failed to unmarshal OpenAI response")
-
-			return nil, err
 		}
 
-		return events, nil
+		var err error
+		events := make([]model.Event, len(response.Result))
+		for i, aiEvent := range response.Result {
+			events[i], err = aiEvent.ToModelEvent()
+		}
+
+		return events, err
 	}
 }
 
