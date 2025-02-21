@@ -152,7 +152,7 @@ func (b *Bot) handleIncomingText(
 
 	message := &model.TextMessage{
 		From:        from,
-		Text:        formatMessageText(text, matterEntities),
+		Text:        FormatMessageText(text, matterEntities),
 		MessageType: msgType,
 	}
 	b.handleTextMessage(ctx, update, message)
@@ -225,7 +225,7 @@ func getForwardOrigin(update *models.Update) string {
 	}
 }
 
-func formatMessageText(text string, entities []models.MessageEntity) string {
+func FormatMessageText(text string, entities []models.MessageEntity) string {
 	if len(entities) == 0 {
 		return text
 	}
@@ -239,18 +239,20 @@ func formatMessageText(text string, entities []models.MessageEntity) string {
 	runeArray := []rune(text)
 	generalOffset := 0
 
-	for _, entiry := range entities {
-		text1 := string(runeArray[generalOffset : entiry.Offset+entiry.Length])
+	for _, entity := range entities {
+		part := string(runeArray[generalOffset : entity.Offset+entity.Length])
 
 		sb.WriteString(
 			fmt.Sprintf(
 				"%s[%s]",
-				text1,
-				entiry.URL,
+				part,
+				entity.URL,
 			),
 		)
-		generalOffset = entiry.Offset + entiry.Length
+		generalOffset = entity.Offset + entity.Length
 	}
+
+	sb.WriteString(string(runeArray[generalOffset:]))
 
 	return sb.String()
 }

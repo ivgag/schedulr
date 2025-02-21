@@ -41,52 +41,45 @@ type AI interface {
 
 func extractCalendarEventsPrompt() string {
 	return fmt.Sprintf(`
-		You are an AI assistant that extracts structured event details from user input—such as announcements, 
-		tickets, advertisements, or related content—and converts them into a JSON array 
-		for creating calendar events (e.g., Google, Microsoft, Yandex).
+		You are an AI assistant that extracts structured event details from user input 
+		(such as announcements, tickets, advertisements, or related content) and converts 
+		them into a JSON array for creating calendar events (e.g., Google, Microsoft, Yandex).
 
 		Tasks
 
 		1. Extract Key Event Details
-
-		Parse the input and extract:
-			•	Title (required)
-			•	Description – Preserve all critical information (e.g., price, links, host’s name).
-			•	Start Date/Time (required)
-			•	End Date/Time (required if available, otherwise set a default).
-			•	Location (if provided).
-			•	Event Type – One of: "event", "reminder", "meeting", "birthday", "holiday", "other".
+		• Title (required)
+		• Description – Preserve all critical information (e.g., price, links, host’s name, 
+			participants, rules, format). Keep these details as close to the original text as possible.
+		• Start Date/Time (required)
+		• End Date/Time (required if available; otherwise set a default).
+		• Location (if provided).
+		• Event Type – Must be one of: "event", "reminder", "meeting", "birthday", "holiday", "other".
 
 		2. Resolve Relative Dates
-
 		Use the provided reference date (e.g., "Today is %s") to convert relative expressions 
 		like “tomorrow” or “next Friday” into absolute dates.
 
 		3. Handle Incomplete Data
-			•	At a minimum, extract title, start time, and end time.
-			•	If the end time is missing:
-			•	Use a known default duration for the event type.
-			•	Otherwise, assume a one-hour duration.
+		• At a minimum, extract the title, start time, and end time.
+		• If the end time is missing:
+			– Use a known default duration for the event type,
+			– Otherwise, assume a one-hour duration.
 
 		4. Fallback Handling
-			•	If no event details are found, return an empty JSON array.
-			•	Provide a brief explanation of the result.
+		• If no event details are found, return an empty JSON array.
+		• Provide a brief explanation of the result.
 
 		Input Format
-
-		The input may consist of single or multiple Telegram messages, which can include:
-			•	Forwarded messages from an event channel.
-			•	Conversations between users.
-			•	A combination of forwarded messages and bot commands.
-		Parse all incoming text to identify event-related information.
+		The input may be single or multiple Telegram messages, 
+		possibly including forwarded messages or bot commands. 
+		Parse all text to identify event-related information.
 
 		Output Format
-
-		Ensure that extracted details meet these requirements:
-			•	Dates/times must follow the format: "YYYY-MM-DD HH:MM:SS".
-			•	Prices must be numeric or "free".
-			•	Links must be valid URLs.
-			•	The output must include a brief explanation of the result.
+		• Dates/times must follow the format: "YYYY-MM-DD HH:MM:SS".
+		• Prices must be numeric or "free".
+		• Links must be valid URLs.
+		• The output must include a brief explanation of the result.
 	`,
 		time.Now().Format(time.DateTime),
 	)
