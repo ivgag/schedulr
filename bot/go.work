@@ -1,0 +1,12 @@
+go 1.23.3
+
+use (
+	.
+	./ai
+	./model
+	./rest
+	./service
+	./storage
+	./tgbot
+	./utils
+)

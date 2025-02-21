@@ -16,6 +16,7 @@ require (
 	github.com/ivgag/schedulr/model v0.0.0
 	github.com/ivgag/schedulr/storage v0.0.0
 	github.com/rs/zerolog v1.33.0
+	github.com/tkuchiki/go-timezone v0.2.3
 	golang.org/x/oauth2 v0.26.0
 	google.golang.org/api v0.222.0
 )
@@ -36,7 +37,6 @@ require (
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.19 // indirect
 	github.com/sashabaranov/go-openai v1.37.0 // indirect
-	github.com/tkuchiki/go-timezone v0.2.3 // indirect
 	go.opentelemetry.io/auto/sdk v1.1.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.58.0 // indirect
 	go.opentelemetry.io/otel v1.34.0 // indirect
