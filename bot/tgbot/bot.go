@@ -1,22 +1,3 @@
-/*
- * Created on Mon Feb 17 2025
- *
- *  Copyright (c) 2025 Ivan Gagarkin
- * SPDX-License-Identifier: EPL-2.0
- *
- * Licensed under the Eclipse Public License - v 2.0 (the "License").
- * You may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *    http://www.eclipse.org/legal/epl-2.0/
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package tgbot
 
 import (
@@ -24,6 +5,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/go-telegram/bot"
@@ -34,7 +16,25 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-// NewBot initializes the Telegram bot with the provided context and services.
+// TelegramBotConfig remains unchanged.
+type TelegramBotConfig struct {
+	Token string `mapstructure:"token"`
+	URL   string `mapstructure:"url"`
+}
+
+// Bot wraps bot.Bot with service dependencies and buffering fields.
+type Bot struct {
+	ctx             context.Context
+	cfg             *TelegramBotConfig
+	chatBot         *bot.Bot
+	userService     *service.UserService
+	eventService    *service.EventService
+	bufferedUpdates map[int64][]*models.Update // Keyed by chat ID.
+	bufferTimers    map[int64]*time.Timer      // Timers per chat.
+	bufferMutex     sync.Mutex                 // Mutex for bufferedUpdates and bufferTimers.
+}
+
+// NewBot initializes the bot and its buffers.
 func NewBot(
 	ctx context.Context,
 	cfg *TelegramBotConfig,
@@ -42,23 +42,16 @@ func NewBot(
 	eventService *service.EventService,
 ) *Bot {
 	return &Bot{
-		ctx:          ctx,
-		cfg:          cfg,
-		userService:  userService,
-		eventService: eventService,
+		ctx:             ctx,
+		cfg:             cfg,
+		userService:     userService,
+		eventService:    eventService,
+		bufferedUpdates: make(map[int64][]*models.Update),
+		bufferTimers:    make(map[int64]*time.Timer),
 	}
 }
 
-// Bot wraps bot.Bot with service dependencies.
-type Bot struct {
-	ctx          context.Context
-	cfg          *TelegramBotConfig
-	chatBot      *bot.Bot
-	userService  *service.UserService
-	eventService *service.EventService
-}
-
-// Start initializes the Telegram bot, registers handlers, and starts update processing.
+// Start and other methods remain unchanged.
 func (b *Bot) Start() error {
 	opts := []bot.Option{
 		bot.WithDebug(),
@@ -122,62 +115,66 @@ func (b *Bot) linkGoogleAccountHandler(ctx context.Context, botAPI *bot.Bot, upd
 	b.sendMessage(ctx, chatID, "Link your Google Calendar: "+link, "")
 }
 
-// defaultHandler processes incoming messages (text or captions) and delegates handling.
+// defaultHandler now checks if the message is forwarded and buffers it.
 func (b *Bot) defaultHandler(ctx context.Context, botAPI *bot.Bot, update *models.Update) {
-	if update.Message.Text != "" {
-		b.handleIncomingText(ctx, update, update.Message.Text, update.Message.Entities, model.UserMessage, update.Message.From.Username)
-	} else if update.Message.Caption != "" {
-		from := getForwardOrigin(update)
-		b.handleIncomingText(ctx, update, update.Message.Caption, update.Message.CaptionEntities, model.ForwardedMessage, from)
-	}
-	// Если сообщение не содержит текст или подпись, ничего не делаем.
+	b.bufferUpdate(ctx, update)
+	// If the message has no text or caption, do nothing.
 }
 
-func (b *Bot) handleIncomingText(
-	ctx context.Context,
-	update *models.Update,
-	text string,
-	entities []models.MessageEntity,
-	msgType model.MessageType,
-	from string,
-) {
-	matterEntities := make([]models.MessageEntity, 0)
-	for _, entity := range entities {
-		if entity.Type == models.MessageEntityTypeTextLink ||
-			entity.Type == models.MessageEntityTypeTextMention ||
-			entity.Type == models.MessageEntityTypeURL {
-			matterEntities = append(matterEntities, entity)
-		}
-	}
-
-	message := &model.TextMessage{
-		From:        from,
-		Text:        FormatMessageText(text, matterEntities),
-		MessageType: msgType,
-	}
-	b.handleTextMessage(ctx, update, message)
-}
-
-// handleTextMessage processes the text message and sends events as Telegram messages.
-func (b *Bot) handleTextMessage(ctx context.Context, update *models.Update, textMessage *model.TextMessage) {
+// bufferForwardedText buffers forwarded text messages by chat.
+func (b *Bot) bufferUpdate(ctx context.Context, update *models.Update) {
 	chatID := update.Message.Chat.ID
-	events, err := b.eventService.CreateEventsFromUserMessage(chatID, *textMessage)
+	b.bufferMutex.Lock()
+	defer b.bufferMutex.Unlock()
+
+	// Append the message to the buffer.
+	b.bufferedUpdates[chatID] = append(b.bufferedUpdates[chatID], update)
+
+	// Reset the timer if it already exists.
+	if timer, exists := b.bufferTimers[chatID]; exists {
+		timer.Stop()
+	}
+	// Start a new timer. After 3 seconds of inactivity, process the buffered messages.
+	b.bufferTimers[chatID] = time.AfterFunc(3*time.Second, func() {
+		b.processBufferedMessages(ctx, chatID)
+	})
+}
+
+// processBufferedMessages processes all buffered messages for a chat.
+func (b *Bot) processBufferedMessages(ctx context.Context, chatID int64) {
+	b.bufferMutex.Lock()
+
+	messages := b.bufferedUpdates[chatID]
+
+	delete(b.bufferedUpdates, chatID)
+	delete(b.bufferTimers, chatID)
+	b.bufferMutex.Unlock()
+
+	if len(messages) == 0 {
+		return
+	}
+
+	textMessages := make([]model.TextMessage, len(messages))
+	for i, msg := range messages {
+		textMessages[i] = updateToMessage(msg)
+	}
+
+	createdEvents, err := b.eventService.CreateEventsFromUserMessage(chatID, textMessages)
 	if err != nil {
 		log.Error().
 			Int64("chatID", chatID).
 			Err(err).
 			Msg("Failed to create events")
-
 		b.sendMessage(ctx, chatID, "Failed to create events. Try later.", "")
-		return
-	}
-
-	for _, event := range events {
-		b.sendMessage(ctx, chatID, formatEventForTelegram(event), models.ParseModeMarkdownV1)
+	} else if len(createdEvents) == 0 {
+		b.sendMessage(ctx, chatID, "No events found in forwarded messages.", "")
+	} else {
+		for _, event := range createdEvents {
+			b.sendMessage(ctx, chatID, formatEventForTelegram(event), models.ParseModeMarkdownV1)
+		}
 	}
 }
 
-// sendMessage wraps bot.SendMessage with common parameters.
 func (b *Bot) sendMessage(ctx context.Context, chatID int64, text string, parseMode models.ParseMode) {
 	params := &bot.SendMessageParams{
 		ChatID: chatID,
@@ -189,7 +186,6 @@ func (b *Bot) sendMessage(ctx context.Context, chatID int64, text string, parseM
 	b.chatBot.SendMessage(ctx, params)
 }
 
-// formatEventForTelegram returns a formatted string representing the event.
 func formatEventForTelegram(scheduledEvent model.ScheduledEvent) string {
 	event := scheduledEvent.Event
 
@@ -210,18 +206,52 @@ func formatEventForTelegram(scheduledEvent model.ScheduledEvent) string {
 	return message
 }
 
-// getForwardOrigin extracts the origin information from a forwarded message.
-func getForwardOrigin(update *models.Update) string {
-	fwd := update.Message.ForwardOrigin
-	switch {
-	case fwd.MessageOriginUser != nil:
-		return fwd.MessageOriginUser.SenderUser.Username
-	case fwd.MessageOriginHiddenUser != nil:
-		return fwd.MessageOriginHiddenUser.SenderUserName
-	case fwd.MessageOriginChannel != nil:
-		return fwd.MessageOriginChannel.Chat.Title
-	default:
-		return fwd.MessageOriginChat.SenderChat.Username
+func debugHandler(format string, args ...interface{}) {
+	log.Debug().Msg(fmt.Sprintf(format, args...))
+}
+
+func errorsHandler(err error) {
+	log.Error().Err(err).Msg("Telegram bot error")
+}
+
+func updateToMessage(update *models.Update) model.TextMessage {
+	var msgType model.MessageType
+	if update.Message.Text != "" {
+		msgType = model.UserMessage
+	} else if update.Message.Caption != "" {
+		msgType = model.ForwardedMessage
+	} else {
+		return model.TextMessage{}
+	}
+
+	var from string
+	var text string
+	var entities []models.MessageEntity
+
+	switch msgType {
+	case model.UserMessage:
+		from = update.Message.From.Username
+		text = update.Message.Text
+		entities = update.Message.Entities
+	case model.ForwardedMessage:
+		from = update.Message.From.Username
+		text = update.Message.Caption
+		entities = update.Message.CaptionEntities
+	}
+
+	var matterEntities = make([]models.MessageEntity, 0)
+	for _, entity := range entities {
+		if entity.Type == models.MessageEntityTypeTextLink ||
+			entity.Type == models.MessageEntityTypeTextMention ||
+			entity.Type == models.MessageEntityTypeURL {
+			matterEntities = append(matterEntities, entity)
+		}
+	}
+
+	return model.TextMessage{
+		From:        from,
+		Text:        FormatMessageText(text, matterEntities),
+		MessageType: msgType,
 	}
 }
 
@@ -231,7 +261,6 @@ func FormatMessageText(text string, entities []models.MessageEntity) string {
 	}
 
 	var sb strings.Builder
-
 	sort.SliceStable(entities, func(i, j int) bool {
 		return entities[i].Offset < entities[j].Offset
 	})
@@ -241,31 +270,10 @@ func FormatMessageText(text string, entities []models.MessageEntity) string {
 
 	for _, entity := range entities {
 		part := string(runeArray[generalOffset : entity.Offset+entity.Length])
-
-		sb.WriteString(
-			fmt.Sprintf(
-				"%s[%s]",
-				part,
-				entity.URL,
-			),
-		)
+		sb.WriteString(fmt.Sprintf("%s[%s]", part, entity.URL))
 		generalOffset = entity.Offset + entity.Length
 	}
 
 	sb.WriteString(string(runeArray[generalOffset:]))
-
 	return sb.String()
-}
-
-func debugHandler(format string, args ...interface{}) {
-	log.Debug().Msg(fmt.Sprintf(format, args...))
-}
-
-func errorsHandler(err error) {
-	log.Error().Err(err).Msg("Telegram bot error")
-}
-
-type TelegramBotConfig struct {
-	Token string `mapstructure:"token"`
-	URL   string `mapstructure:"url"`
 }

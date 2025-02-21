@@ -46,8 +46,8 @@ func (o *OpenAI) Provider() AIProvider {
 	return ProviderOpenAI
 }
 
-func (o *OpenAI) ExtractCalendarEvents(message *model.TextMessage) (AiResponse[[]model.Event], model.Error) {
-	userInput := messagesToText([]model.TextMessage{*message})
+func (o *OpenAI) ExtractCalendarEvents(messages []model.TextMessage) (AiResponse[[]model.Event], model.Error) {
+	userInput := messagesToText(messages)
 
 	var response AiResponse[[]model.Event]
 	var schema AiResponse[[]EventSchema]
@@ -102,7 +102,7 @@ func (o *OpenAI) ExtractCalendarEvents(message *model.TextMessage) (AiResponse[[
 		err = responseSchema.Unmarshal(responseContent, &response)
 		if err != nil {
 			log.Error().
-				Interface("message", message).
+				Interface("messages", messages).
 				Str("responseContent", responseContent).
 				Err(err).Msg("Failed to unmarshal OpenAI response")
 		}

@@ -118,7 +118,7 @@ func (s *GoogleTokenService) ClientForUser(userID int) (*http.Client, error) {
 		return nil, err
 	}
 
-	if time.Now().UTC().After(account.Expiry) {
+	if time.Now().UTC().After(account.Expiry.UTC()) {
 		tokenSource := s.oauth2Config.TokenSource(context.Background(), &oauth2.Token{
 			RefreshToken: account.RefreshToken,
 		})
@@ -129,7 +129,7 @@ func (s *GoogleTokenService) ClientForUser(userID int) (*http.Client, error) {
 
 		account.AccessToken = newToken.AccessToken
 		account.RefreshToken = newToken.RefreshToken
-		account.Expiry = newToken.Expiry
+		account.Expiry = newToken.Expiry.UTC()
 
 		err = s.linkedAccountsRepository.Save(account)
 		if err != nil {

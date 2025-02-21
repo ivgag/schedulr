@@ -46,13 +46,13 @@ type AIService struct {
 	aisMap map[ai.AIProvider]ai.AI
 }
 
-func (s *AIService) ExtractCalendarEvents(message *model.TextMessage) ([]model.Event, model.Error) {
+func (s *AIService) ExtractCalendarEvents(messages []model.TextMessage) ([]model.Event, model.Error) {
 	for _, ai := range s.aisMap {
 		log.Debug().
 			Str("provider", string(ai.Provider())).
 			Msg("Extracting events with AI provider")
 
-		response, err := s.extractEventsWithRetires(message, ai)
+		response, err := s.extractEventsWithRetires(messages, ai)
 		if err != nil {
 			log.Warn().
 				Str("provider", string(ai.Provider())).
@@ -63,7 +63,7 @@ func (s *AIService) ExtractCalendarEvents(message *model.TextMessage) ([]model.E
 		if len(response.Result) == 0 {
 			log.Warn().
 				Str("provider", string(ai.Provider())).
-				Interface("message", message).
+				Interface("message", messages).
 				Str("explanation", response.Explanation).
 				Msg("AI provider extracted no events from the message")
 			return nil, model.ErrorForMessage("No events were extracted from the message")
@@ -80,12 +80,12 @@ func (s *AIService) ExtractCalendarEvents(message *model.TextMessage) ([]model.E
 }
 
 func (s *AIService) extractEventsWithRetires(
-	message *model.TextMessage,
+	messages []model.TextMessage,
 	agent ai.AI,
 ) (ai.AiResponse[[]model.Event], model.Error) {
 	operation := func() (ai.AiResponse[[]model.Event], error) {
 		var apiError = ai.ApiError{}
-		response, err := agent.ExtractCalendarEvents(message)
+		response, err := agent.ExtractCalendarEvents(messages)
 		if err == nil {
 			return response, nil
 		} else if errors.As(err, &apiError) && apiError.Retryable {

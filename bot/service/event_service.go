@@ -41,13 +41,13 @@ type EventService struct {
 	calendarServices map[model.Provider]CalendarService
 }
 
-func (s *EventService) CreateEventsFromUserMessage(telegramID int64, message model.TextMessage) ([]model.ScheduledEvent, error) {
+func (s *EventService) CreateEventsFromUserMessage(telegramID int64, messages []model.TextMessage) ([]model.ScheduledEvent, error) {
 	user, err := s.userService.GetUserByTelegramID(telegramID)
 	if err != nil {
 		return nil, err
 	}
 
-	events, err := s.aiService.ExtractCalendarEvents(&message)
+	events, err := s.aiService.ExtractCalendarEvents(messages)
 	if err != nil {
 		return nil, err
 	}

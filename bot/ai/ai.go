@@ -35,7 +35,7 @@ const (
 )
 
 type AI interface {
-	ExtractCalendarEvents(message *model.TextMessage) (AiResponse[[]model.Event], model.Error)
+	ExtractCalendarEvents(messages []model.TextMessage) (AiResponse[[]model.Event], model.Error)
 	Provider() AIProvider
 }
 
@@ -100,10 +100,12 @@ func messagesToText(messages []model.TextMessage) string {
 	for _, msg := range messages {
 		switch msg.MessageType {
 		case model.UserMessage:
-			sb.WriteString(fmt.Sprintf("%s: %s\n", msg.From, msg.Text))
+			sb.WriteString(fmt.Sprintf("The user's message: %s\n", msg.Text))
 		case model.ForwardedMessage:
 			sb.WriteString(fmt.Sprintf("Forwarded from %s: %s\n", msg.From, msg.Text))
 		}
+
+		sb.WriteString("\n")
 	}
 
 	return sb.String()
