@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"net/http"
 	"time"
+	_ "time/tzdata"
 
 	"github.com/cenkalti/backoff/v5"
 	"github.com/gofrs/uuid"
@@ -220,6 +221,11 @@ func (c *GoogleCalendarService) insertEventWithRetries(
 func toGoogleCalendarEvent(event *model.Event, timezone string) (*calendar.Event, error) {
 	loc, err := time.LoadLocation(timezone)
 	if err != nil {
+		log.Error().
+			Str("timezone", timezone).
+			Err(err).
+			Msg("Failed to load timezone")
+
 		return nil, err
 	}
 
