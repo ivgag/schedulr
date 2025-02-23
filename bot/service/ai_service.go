@@ -49,31 +49,26 @@ type AIService struct {
 func (s *AIService) ExtractCalendarEvents(messages []model.TextMessage) ([]model.Event, model.Error) {
 	for _, ai := range s.aisMap {
 		log.Debug().
+			Interface("messages", messages).
 			Str("provider", string(ai.Provider())).
 			Msg("Extracting events with AI provider")
 
 		response, err := s.extractEventsWithRetires(messages, ai)
 		if err != nil {
 			log.Warn().
+				Interface("messages", messages).
 				Str("provider", string(ai.Provider())).
 				Err(err).
 				Msg("AI provider failed to extract events from the message")
 		}
 
-		if len(response.Result) == 0 {
-			log.Warn().
-				Str("provider", string(ai.Provider())).
-				Interface("message", messages).
-				Str("explanation", response.Explanation).
-				Msg("AI provider extracted no events from the message")
-			return nil, model.ErrorForMessage("No events were extracted from the message")
-		} else {
-			log.Debug().
-				Str("provider", string(ai.Provider())).
-				Msg("AI provider successfully extracted events from the message")
+		log.Debug().
+			Interface("messages", messages).
+			Interface("response", response).
+			Str("provider", string(ai.Provider())).
+			Msg("AI provider successfully extracted events from the message")
 
-			return response.Result, nil
-		}
+		return response.Result, nil
 	}
 
 	return nil, model.ErrorForMessage("No AI provider was able to extract events from the message")

@@ -30,7 +30,6 @@ import (
 	"github.com/ivgag/schedulr/model"
 	"github.com/ivgag/schedulr/storage"
 	"github.com/rs/zerolog/log"
-	tz "github.com/tkuchiki/go-timezone"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/calendar/v3"
@@ -219,24 +218,24 @@ func (c *GoogleCalendarService) insertEventWithRetries(
 }
 
 func toGoogleCalendarEvent(event *model.Event, timezone string) (*calendar.Event, error) {
-	tzInfo, err := tz.New().GetTzInfo(timezone)
+	loc, err := time.LoadLocation(timezone)
 	if err != nil {
 		return nil, err
 	}
 
-	startTime := formatWithOffset(event.Start, tzInfo.StandardOffset())
-	endTime := formatWithOffset(event.End, tzInfo.StandardOffset())
+	startTime := toLocalTime(event.Start, loc)
+	endTime := toLocalTime(event.End, loc)
 
 	return &calendar.Event{
 		Summary:     event.Title,
 		Location:    event.Location,
 		Description: event.Description,
 		Start: &calendar.EventDateTime{
-			DateTime: startTime,
+			DateTime: startTime.Format(time.RFC3339),
 			TimeZone: timezone,
 		},
 		End: &calendar.EventDateTime{
-			DateTime: endTime,
+			DateTime: endTime.Format(time.RFC3339),
 			TimeZone: timezone,
 		},
 	}, nil
@@ -248,7 +247,6 @@ type GoogleConfig struct {
 	RedirectURL  string `mapstructure:"redirect_url"`
 }
 
-func formatWithOffset(t time.Time, offset int) string {
-	return fmt.Sprintf("%04d-%02d-%02dT%02d:%02d:%02d%+03d:%02d",
-		t.Year(), int(t.Month()), t.Day(), t.Hour(), t.Minute(), t.Second(), offset/3600, (offset%3600)/60)
+func toLocalTime(t time.Time, loc *time.Location) time.Time {
+	return time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second(), t.Nanosecond(), loc)
 }
