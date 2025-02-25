@@ -47,14 +47,14 @@ func (s *EventService) CreateEventsFromUserMessage(telegramID int64, messages []
 		return nil, err
 	}
 
-	events, err := s.aiService.ExtractCalendarEvents(messages)
+	events, err := s.aiService.ExtractCalendarEvents(&messages)
 	if err != nil {
 		return nil, err
 	}
 
-	var scheduledEvents []model.ScheduledEvent = make([]model.ScheduledEvent, len(events))
-	for i := range events {
-		scheduledEvent, err := s.calendarServices[model.ProviderGoogle].CreateEvent(user.ID, &events[i])
+	var scheduledEvents []model.ScheduledEvent = make([]model.ScheduledEvent, len(*events))
+	for i, event := range *events {
+		scheduledEvent, err := s.calendarServices[model.ProviderGoogle].CreateEvent(user.ID, &event)
 		if err != nil {
 			return nil, err
 		}

@@ -21,11 +21,11 @@ package ai
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 
 	"github.com/ivgag/schedulr/model"
 	"github.com/rs/zerolog/log"
+	"github.com/sashabaranov/go-openai/jsonschema"
 
 	deepseek "github.com/cohesion-org/deepseek-go"
 	constants "github.com/cohesion-org/deepseek-go/constants"
@@ -36,70 +36,79 @@ func NewDeepSeekAI(config *DeepseekConfig) *DeepSeekAI {
 
 	return &DeepSeekAI{
 		client: client,
+		config: config,
 	}
 }
 
 type DeepSeekAI struct {
 	client *deepseek.Client
+	config *DeepseekConfig
 }
 
 func (d *DeepSeekAI) Provider() AIProvider {
 	return ProviderDeepSeek
 }
 
-func (d *DeepSeekAI) ExtractCalendarEvents(message *model.TextMessage) (AiResponse[[]model.Event], model.Error) {
+func (d *DeepSeekAI) ExtractCalendarEvents(messages *[]model.TextMessage) (*AiResponse[[]model.Event], model.Error) {
+	var response AiResponse[[]model.Event]
+	var schema AiResponse[[]EventSchema]
+	responseSchema, err := jsonschema.GenerateSchemaForType(schema)
+	jsonSchema, err := responseSchema.MarshalJSON()
+	if err != nil {
+		return nil, err
+	}
+
 	request := &deepseek.ChatCompletionRequest{
-		Model: deepseek.DeepSeekChat,
+		Model: d.config.Model,
 		Messages: []deepseek.ChatCompletionMessage{
 			{Role: constants.ChatMessageRoleSystem, Content: extractCalendarEventsPrompt()},
-			{Role: constants.ChatMessageRoleUser, Content: messagesToText([]model.TextMessage{*message})},
+			{Role: constants.ChatMessageRoleSystem, Content: "Response JSON Format: " + string(jsonSchema)},
+			{Role: constants.ChatMessageRoleUser, Content: messagesToText(messages)},
 		},
 		ResponseFormat: &deepseek.ResponseFormat{
 			Type: "json_object",
 		},
+		JSONMode: true,
 	}
 
 	ctx := context.Background()
-	response, err := d.client.CreateChatCompletion(ctx, request)
+	rawResponse, err := d.client.CreateChatCompletion(ctx, request)
 	if err != nil {
-		return AiResponse[[]model.Event]{}, err
+		return nil, err
 	}
 
 	e := &deepseek.APIError{}
 	if errors.As(err, &e) {
 		switch e.StatusCode {
 		case 500, 503:
-			return AiResponse[[]model.Event]{}, ApiError{
+			return nil, ApiError{
 				Message:      e.Message,
 				ResponseCode: e.StatusCode,
 				Retryable:    true,
 			}
 		default:
-			return AiResponse[[]model.Event]{}, ApiError{
+			return nil, ApiError{
 				Message:      e.Message,
 				ResponseCode: e.StatusCode,
 				Retryable:    false,
 			}
 		}
 	} else {
-		responseContent := response.Choices[0].Message.Content
+		responseContent := rawResponse.Choices[0].Message.Content
 
-		var events []model.Event
-		err = json.Unmarshal([]byte(removeJsonFormattingMarkers(responseContent)), &events)
+		err = responseSchema.Unmarshal(responseContent, &response)
 		if err != nil {
 			log.Error().
+				Interface("messages", messages).
 				Str("responseContent", responseContent).
-				Err(err).Msg("Failed to unmarshal DeepSeek response")
-
-			return AiResponse[[]model.Event]{}, err
+				Err(err).Msg("Failed to unmarshal OpenAI response")
 		}
 
-		return AiResponse[[]model.Event]{
-			Result: events,
-		}, nil
+		return &response, err
 	}
 }
 
 type DeepseekConfig struct {
 	APIKey string `mapstructure:"api_key"`
+	Model  string `mapstructure:"model"`
 }

@@ -53,7 +53,7 @@ func main() {
 	linkedAccountRepo := storage.NewLinkedAccountRepository(db)
 
 	// Initialize AI services.
-	aiSvc := initAIService(&cfg.OpenAI, &cfg.Deepseek)
+	aiSvc := initAIService(&cfg.AIConfig)
 
 	// Initialize Google token and user services.
 	googleTokenSvc := service.NewGoogleTokenService(&cfg.Google, linkedAccountRepo)
@@ -98,10 +98,10 @@ func initDatabase(dbURL string) *sql.DB {
 	return db
 }
 
-func initAIService(openAICfg *ai.OpenAIConfig, _ *ai.DeepseekConfig) *service.AIService {
-	openAi := ai.NewOpenAI(openAICfg)
-	// deepseek := ai.NewDeepSeekAI(deepseekCfg)
-	return service.NewAIService([]ai.AI{openAi})
+func initAIService(aiConfig *service.AIConfig) *service.AIService {
+	openAi := ai.NewOpenAI(&aiConfig.OpenAI)
+	deepseek := ai.NewDeepSeekAI(&aiConfig.Deepseek)
+	return service.NewAIService([]ai.AI{openAi, deepseek}, aiConfig)
 }
 
 func createAutocertManager(restCfg rest.RestConfig) autocert.Manager {
@@ -164,8 +164,7 @@ func shutdownServer(srv *http.Server) {
 
 type AppConfig struct {
 	TelegramBot tgbot.TelegramBotConfig `mapstructure:"telegram_bot"`
-	OpenAI      ai.OpenAIConfig         `mapstructure:"openai"`
-	Deepseek    ai.DeepseekConfig       `mapstructure:"deepseek"`
+	AIConfig    service.AIConfig        `mapstructure:"ai"`
 	Google      service.GoogleConfig    `mapstructure:"google"`
 	Database    storage.DatabaseConfig  `mapstructure:"database"`
 	Rest        rest.RestConfig         `mapstructure:"rest"`

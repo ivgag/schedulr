@@ -46,9 +46,7 @@ func (o *OpenAI) Provider() AIProvider {
 	return ProviderOpenAI
 }
 
-func (o *OpenAI) ExtractCalendarEvents(messages []model.TextMessage) (AiResponse[[]model.Event], model.Error) {
-	userInput := messagesToText(messages)
-
+func (o *OpenAI) ExtractCalendarEvents(messages *[]model.TextMessage) (*AiResponse[[]model.Event], model.Error) {
 	var response AiResponse[[]model.Event]
 	var schema AiResponse[[]EventSchema]
 	responseSchema, err := jsonschema.GenerateSchemaForType(schema)
@@ -64,7 +62,7 @@ func (o *OpenAI) ExtractCalendarEvents(messages []model.TextMessage) (AiResponse
 				},
 				{
 					Role:    openai.ChatMessageRoleUser,
-					Content: userInput,
+					Content: messagesToText(messages),
 				},
 			},
 			ResponseFormat: &openai.ChatCompletionResponseFormat{
@@ -82,20 +80,18 @@ func (o *OpenAI) ExtractCalendarEvents(messages []model.TextMessage) (AiResponse
 	if errors.As(err, &e) {
 		switch e.HTTPStatusCode {
 		case 500, 503:
-			return AiResponse[[]model.Event]{}, ApiError{
+			return nil, ApiError{
 				Message:      e.Message,
 				ResponseCode: e.HTTPStatusCode,
 				Retryable:    true,
 			}
 		default:
-			return AiResponse[[]model.Event]{}, ApiError{
+			return nil, ApiError{
 				Message:      e.Message,
 				ResponseCode: e.HTTPStatusCode,
 				Retryable:    false,
 			}
 		}
-	} else if err != nil {
-		return AiResponse[[]model.Event]{}, err
 	} else {
 		responseContent := resp.Choices[0].Message.Content
 
@@ -107,7 +103,7 @@ func (o *OpenAI) ExtractCalendarEvents(messages []model.TextMessage) (AiResponse
 				Err(err).Msg("Failed to unmarshal OpenAI response")
 		}
 
-		return response, err
+		return &response, err
 	}
 }
 

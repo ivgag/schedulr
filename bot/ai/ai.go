@@ -35,7 +35,7 @@ const (
 )
 
 type AI interface {
-	ExtractCalendarEvents(messages []model.TextMessage) (AiResponse[[]model.Event], model.Error)
+	ExtractCalendarEvents(messages *[]model.TextMessage) (*AiResponse[[]model.Event], model.Error)
 	Provider() AIProvider
 }
 
@@ -94,10 +94,10 @@ func removeJsonFormattingMarkers(text string) string {
 
 // messagesToText converts an array of TextMessages into a single string.
 // It uses formatMessageText to include entity markers correctly.
-func messagesToText(messages []model.TextMessage) string {
+func messagesToText(messages *[]model.TextMessage) string {
 	var sb strings.Builder
 
-	for _, msg := range messages {
+	for _, msg := range *messages {
 		switch msg.MessageType {
 		case model.UserMessage:
 			sb.WriteString(fmt.Sprintf("The user's message: %s\n", msg.Text))

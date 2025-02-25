@@ -104,7 +104,7 @@ require (
 
 require (
 	github.com/cenkalti/backoff/v5 v5.0.2 // indirect
-	github.com/cohesion-org/deepseek-go v1.2.1 // indirect
+	github.com/cohesion-org/deepseek-go v1.2.4 // indirect
 	github.com/joho/godotenv v1.5.1 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/spf13/viper v1.19.0

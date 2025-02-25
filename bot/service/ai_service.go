@@ -22,6 +22,7 @@ package service
 import (
 	"context"
 	"errors"
+	"strings"
 
 	"github.com/cenkalti/backoff/v5"
 	"github.com/rs/zerolog/log"
@@ -30,24 +31,33 @@ import (
 	"github.com/ivgag/schedulr/model"
 )
 
-func NewAIService(ais []ai.AI) *AIService {
-
-	aisMap := make(map[ai.AIProvider]ai.AI)
+func NewAIService(
+	ais []ai.AI,
+	config *AIConfig,
+) *AIService {
+	aisMap := make(map[string]ai.AI)
 	for _, ai := range ais {
-		aisMap[ai.Provider()] = ai
+		aisMap[strings.ToLower(string(ai.Provider()))] = ai
 	}
 
 	return &AIService{
 		aisMap: aisMap,
+		config: config,
 	}
 }
 
 type AIService struct {
-	aisMap map[ai.AIProvider]ai.AI
+	aisMap map[string]ai.AI
+	config *AIConfig
 }
 
-func (s *AIService) ExtractCalendarEvents(messages []model.TextMessage) ([]model.Event, model.Error) {
-	for _, ai := range s.aisMap {
+func (s *AIService) ExtractCalendarEvents(messages *[]model.TextMessage) (*[]model.Event, model.Error) {
+	for _, service := range s.config.Priority {
+		ai, ok := s.aisMap[strings.ToLower(service)]
+		if !ok {
+			continue
+		}
+
 		log.Debug().
 			Interface("messages", messages).
 			Str("provider", string(ai.Provider())).
@@ -68,29 +78,29 @@ func (s *AIService) ExtractCalendarEvents(messages []model.TextMessage) ([]model
 			Str("provider", string(ai.Provider())).
 			Msg("AI provider successfully extracted events from the message")
 
-		return response.Result, nil
+		return &response.Result, nil
 	}
 
 	return nil, model.ErrorForMessage("No AI provider was able to extract events from the message")
 }
 
 func (s *AIService) extractEventsWithRetires(
-	messages []model.TextMessage,
+	messages *[]model.TextMessage,
 	agent ai.AI,
-) (ai.AiResponse[[]model.Event], model.Error) {
+) (*ai.AiResponse[[]model.Event], model.Error) {
 	operation := func() (ai.AiResponse[[]model.Event], error) {
 		var apiError = ai.ApiError{}
 		response, err := agent.ExtractCalendarEvents(messages)
 		if err == nil {
-			return response, nil
+			return *response, nil
 		} else if errors.As(err, &apiError) && apiError.Retryable {
 			return ai.AiResponse[[]model.Event]{}, err
 		} else {
-			return response, backoff.Permanent(err)
+			return *response, backoff.Permanent(err)
 		}
 	}
 
-	events, err := backoff.Retry(
+	response, err := backoff.Retry(
 		context.Background(),
 		operation,
 		backoff.WithBackOff(backoff.NewExponentialBackOff()),
@@ -98,7 +108,13 @@ func (s *AIService) extractEventsWithRetires(
 	)
 
 	if err != nil {
-		return ai.AiResponse[[]model.Event]{}, err
+		return nil, err
 	}
-	return events, nil
+	return &response, nil
+}
+
+type AIConfig struct {
+	Deepseek ai.DeepseekConfig `mapstructure:"deepseek"`
+	OpenAI   ai.OpenAIConfig   `mapstructure:"openai"`
+	Priority []string          `mapstructure:"priority"`
 }

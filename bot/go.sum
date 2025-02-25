@@ -19,8 +19,8 @@ github.com/cloudwego/base64x v0.1.5/go.mod h1:0zlkT4Wn5C6NdauXdJRhSKRlJvmclQ1hhJ
 github.com/cloudwego/iasm v0.2.0/go.mod h1:8rXZaNYT2n95jn+zTI1sDr+IgcD2GVs0nlbbQPiEFhY=
 github.com/cockroachdb/apd v1.1.0 h1:3LFP3629v+1aKXU5Q37mxmRxX/pIu1nijXydLShEq5I=
 github.com/cockroachdb/apd v1.1.0/go.mod h1:8Sl8LxpKi29FqWXR16WEFZRNSz3SoPzUzeMeY4+DwBQ=
-github.com/cohesion-org/deepseek-go v1.2.1 h1:Y7bG4y+G6UsPPrkZTnl73NTWbiEnD9eOIZgUJg/AioM=
-github.com/cohesion-org/deepseek-go v1.2.1/go.mod h1:Mi/tP7IzBoXxDC606CFbJC5Ofk2HCikCayBXweo1RDg=
+github.com/cohesion-org/deepseek-go v1.2.4 h1:Dk0aGrBvtIsf9xrhv0ScNLL2hVmnNoaP17009o3mFSo=
+github.com/cohesion-org/deepseek-go v1.2.4/go.mod h1:Mi/tP7IzBoXxDC606CFbJC5Ofk2HCikCayBXweo1RDg=
 github.com/coreos/go-systemd v0.0.0-20190321100706-95778dfbb74e/go.mod h1:F5haX7vjVVG0kc13fIWeqUViNPyEJxv/OmvnBo0Yme4=
 github.com/coreos/go-systemd v0.0.0-20190719114852-fd7a80b32e1f/go.mod h1:F5haX7vjVVG0kc13fIWeqUViNPyEJxv/OmvnBo0Yme4=
 github.com/coreos/go-systemd/v22 v22.5.0/go.mod h1:Y58oyj3AT4RCenI/lSvhwexgC+NSVTIJ3seZv2GcEnc=
