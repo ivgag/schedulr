@@ -33,8 +33,33 @@ type PgLinkedAccountRepository struct {
 	db *sql.DB
 }
 
+// GetByUserID implements LinkedAccountRepository.
+func (p *PgLinkedAccountRepository) GetByUserID(userID int) ([]model.LinkedAccount, error) {
+	rows, err := p.db.Query(`
+	SELECT id, user_id, provider, access_token, refresh_token, expiry
+	FROM linked_accounts
+	WHERE user_id = $1`,
+		userID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var accounts []model.LinkedAccount
+	for rows.Next() {
+		var account model.LinkedAccount
+		if err := rows.Scan(&account.ID, &account.UserID, &account.Provider, &account.AccessToken, &account.RefreshToken, &account.Expiry); err != nil {
+			return nil, err
+		}
+		accounts = append(accounts, account)
+	}
+
+	return accounts, nil
+}
+
 // Save implements ConnectedAccountRepository.
-func (p *PgLinkedAccountRepository) Save(account LinkedAccount) error {
+func (p *PgLinkedAccountRepository) Save(account *model.LinkedAccount) error {
 	row := p.db.QueryRow(`
 	INSERT INTO linked_accounts(user_id, provider, access_token, refresh_token, expiry, created_at, updated_at)
 	VALUES($1, $2, $3, $4, $5, timezone('utc', now()), timezone('utc', now()))
@@ -56,8 +81,8 @@ func (p *PgLinkedAccountRepository) Save(account LinkedAccount) error {
 }
 
 // GetByUserIDAndProvider implements ConnectedAccountRepository.
-func (p *PgLinkedAccountRepository) GetByUserIDAndProvider(userID int, provider model.Provider) (LinkedAccount, error) {
-	var account LinkedAccount
+func (p *PgLinkedAccountRepository) GetByUserIDAndProvider(userID int, provider model.Provider) (model.LinkedAccount, error) {
+	var account model.LinkedAccount
 
 	err := p.db.QueryRow(`
 	SELECT id, user_id, provider, access_token, refresh_token, expiry 
@@ -67,10 +92,29 @@ func (p *PgLinkedAccountRepository) GetByUserIDAndProvider(userID int, provider 
 	).Scan(&account.ID, &account.UserID, &account.Provider, &account.AccessToken, &account.RefreshToken, &account.Expiry)
 
 	if err != nil && err.Error() == noRowsError {
-		return LinkedAccount{}, model.NotFoundError{Message: "account not found"}
+		return model.LinkedAccount{}, model.NotFoundError{Message: "account not found"}
 	} else if err != nil {
-		return LinkedAccount{}, err
+		return model.LinkedAccount{}, err
 	} else {
 		return account, nil
 	}
+}
+
+func (p *PgLinkedAccountRepository) DeleteByUserIDAndProvider(userID int, provider model.Provider) (bool, error) {
+	result, err := p.db.Exec(`
+	DELETE FROM linked_accounts
+	WHERE user_id = $1 AND provider = $2`,
+		userID, provider,
+	)
+
+	if err != nil {
+		return false, err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return false, err
+	}
+
+	return rowsAffected > 0, nil
 }

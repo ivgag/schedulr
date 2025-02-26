@@ -16,7 +16,6 @@ require (
 	github.com/go-telegram/bot v1.13.3
 	github.com/ivgag/schedulr/model v0.0.0
 	github.com/ivgag/schedulr/service v0.0.0
-	github.com/ivgag/schedulr/storage v0.0.0
 	github.com/rs/zerolog v1.33.0
 )
 
@@ -35,6 +34,7 @@ require (
 	github.com/googleapis/enterprise-certificate-proxy v0.3.4 // indirect
 	github.com/googleapis/gax-go/v2 v2.14.1 // indirect
 	github.com/ivgag/schedulr/ai v0.0.0 // indirect
+	github.com/ivgag/schedulr/storage v0.0.0 // indirect
 	github.com/joho/godotenv v1.5.1 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.19 // indirect

@@ -29,27 +29,50 @@ import (
 func NewUserService(
 	userRepository storage.UserRepository,
 	tokenServices map[model.Provider]TokenService,
+	timezoneService TimezoneService,
+	linkedAccountsRepository storage.LinkedAccountRepository,
 ) *UserService {
 	return &UserService{
-		userRepository: userRepository,
-		tokenServices:  tokenServices,
+		userRepository:           userRepository,
+		tokenServices:            tokenServices,
+		timezoneService:          timezoneService,
+		linkedAccountsRepository: linkedAccountsRepository,
 	}
 }
 
 type UserService struct {
-	userRepository storage.UserRepository
-	tokenServices  map[model.Provider]TokenService
+	userRepository           storage.UserRepository
+	tokenServices            map[model.Provider]TokenService
+	timezoneService          TimezoneService
+	linkedAccountsRepository storage.LinkedAccountRepository
 }
 
-func (s *UserService) GetUserByID(id int) (storage.User, error) {
+func (s *UserService) GetUserByID(id int) (model.User, error) {
 	return s.userRepository.GetByID(id)
 }
 
-func (s *UserService) GetUserByTelegramID(telegramID int64) (storage.User, error) {
+func (s *UserService) GetUserByTelegramID(telegramID int64) (model.User, error) {
 	return s.userRepository.GetByTelegramID(telegramID)
 }
 
-func (s *UserService) CreateUser(user *storage.User) error {
+func (s *UserService) GetUserProfileByTelegramID(telegramID int64) (model.UserProfile, error) {
+	user, err := s.GetUserByTelegramID(telegramID)
+	if err != nil {
+		return model.UserProfile{}, err
+	}
+
+	accounts, err := s.linkedAccountsRepository.GetByUserID(user.ID)
+	if err != nil {
+		return model.UserProfile{}, err
+	}
+
+	return model.UserProfile{
+		User:           user,
+		LinkedAccounts: accounts,
+	}, nil
+}
+
+func (s *UserService) CreateUser(user *model.User) error {
 	return s.userRepository.Save(user)
 }
 
@@ -66,4 +89,35 @@ func (s *UserService) GetOAuth2Url(telegramID int64, callback func(error), provi
 
 func (s *UserService) LinkAccount(state string, provider model.Provider, code string) error {
 	return s.tokenServices[provider].ExchangeCodeForToken(state, code)
+}
+
+func (s *UserService) UnlinkAccount(telegramID int64, provider model.Provider) (bool, error) {
+	user, err := s.userRepository.GetByTelegramID(telegramID)
+	if err != nil {
+		return false, err
+	} else if user.ID == 0 {
+		return false, errors.New("user not found")
+	}
+
+	return s.linkedAccountsRepository.DeleteByUserIDAndProvider(user.ID, provider)
+}
+
+func (s *UserService) UpdateUserTimeZone(telegramID int64, latitude float64, longitude float64) (string, error) {
+	user, err := s.GetUserByTelegramID(telegramID)
+	if err != nil {
+		return "", err
+	}
+
+	timezone, err := s.timezoneService.GetTimezone(latitude, longitude)
+	if err != nil {
+		return "", err
+	}
+
+	user.Timezone = timezone.TimezoneId
+	err = s.userRepository.Save(&user)
+	if err != nil {
+		return "", err
+	}
+
+	return timezone.TimezoneId, nil
 }

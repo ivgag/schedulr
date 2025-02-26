@@ -60,7 +60,8 @@ func main() {
 	tokenServices := map[model.Provider]service.TokenService{
 		model.ProviderGoogle: googleTokenSvc,
 	}
-	userSvc := service.NewUserService(userRepo, tokenServices)
+	timeZoneService := service.NewTimezoneService(&cfg.Google)
+	userSvc := service.NewUserService(userRepo, tokenServices, *timeZoneService, linkedAccountRepo)
 
 	// Initialize calendar and event services.
 	googleCalendarSvc := service.NewGoogleCalendarService(googleTokenSvc)

@@ -33,42 +33,42 @@ func NewUserRepository(db *sql.DB) UserRepository {
 	return &PgUserRepository{db: db}
 }
 
-func (r *PgUserRepository) GetByID(id int) (User, error) {
-	var user User
-	query := "SELECT id, telegram_id, username FROM users WHERE id = $1"
+func (r *PgUserRepository) GetByID(id int) (model.User, error) {
+	var user model.User
+	query := "SELECT id, telegram_id, username, timezone FROM users WHERE id = $1"
 	err := r.db.QueryRow(query, id).Scan(&user.ID, &user.TelegramID, &user.Username)
 
 	if err != nil && err.Error() == noRowsError {
-		return User{}, model.NotFoundError{Message: "user not found"}
+		return model.User{}, model.NotFoundError{Message: "user not found"}
 	} else if err != nil {
-		return User{}, err
+		return model.User{}, err
 	} else {
 		return user, nil
 	}
 }
 
 // GetByTelegramID implements UserRepository.
-func (r *PgUserRepository) GetByTelegramID(telegramID int64) (User, error) {
-	var user User
-	query := "SELECT id, telegram_id, username FROM users WHERE telegram_id = $1"
-	err := r.db.QueryRow(query, telegramID).Scan(&user.ID, &user.TelegramID, &user.Username)
+func (r *PgUserRepository) GetByTelegramID(telegramID int64) (model.User, error) {
+	var user model.User
+	query := "SELECT id, telegram_id, username, timezone FROM users WHERE telegram_id = $1"
+	err := r.db.QueryRow(query, telegramID).Scan(&user.ID, &user.TelegramID, &user.Username, &user.Timezone)
 
 	if err != nil && err.Error() == noRowsError {
-		return User{}, model.NotFoundError{Message: "user not found"}
+		return model.User{}, model.NotFoundError{Message: "user not found"}
 	} else if err != nil {
-		return User{}, err
+		return model.User{}, err
 	} else {
 		return user, nil
 	}
 }
 
-func (r *PgUserRepository) Save(user *User) error {
+func (r *PgUserRepository) Save(user *model.User) error {
 	query := `
-	INSERT INTO users(telegram_id, username)
-	VALUES($1, $2)
+	INSERT INTO users(telegram_id, username, timezone)
+	VALUES($1, $2, $3)
 	ON CONFLICT (telegram_id)
-	DO UPDATE SET telegram_id = users.telegram_id, username = EXCLUDED.username
+	DO UPDATE SET telegram_id = users.telegram_id, username = EXCLUDED.username, timezone = EXCLUDED.timezone
 	RETURNING id;
 	`
-	return r.db.QueryRow(query, user.TelegramID, user.Username).Scan(&user.ID)
+	return r.db.QueryRow(query, user.TelegramID, user.Username, user.Timezone).Scan(&user.ID)
 }

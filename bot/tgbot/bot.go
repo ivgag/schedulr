@@ -1,3 +1,22 @@
+/*
+ * Created on Mon Feb 17 2025
+ *
+ *  Copyright (c) 2025 Ivan Gagarkin
+ * SPDX-License-Identifier: EPL-2.0
+ *
+ * Licensed under the Eclipse Public License - v 2.0 (the "License").
+ * You may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.eclipse.org/legal/epl-2.0/
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package tgbot
 
 import (
@@ -12,7 +31,6 @@ import (
 	"github.com/go-telegram/bot/models"
 	"github.com/ivgag/schedulr/model"
 	"github.com/ivgag/schedulr/service"
-	"github.com/ivgag/schedulr/storage"
 	"github.com/rs/zerolog/log"
 )
 
@@ -67,7 +85,13 @@ func (b *Bot) Start() error {
 	b.chatBot = chatBot
 
 	b.chatBot.RegisterHandler(bot.HandlerTypeMessageText, "/start", bot.MatchTypeExact, b.startHandler)
-	b.chatBot.RegisterHandler(bot.HandlerTypeMessageText, "/linkgoogle", bot.MatchTypeExact, b.linkGoogleAccountHandler)
+	b.chatBot.RegisterHandler(bot.HandlerTypeMessageText, "/settings", bot.MatchTypeExact, b.settingsHandler)
+
+	b.chatBot.RegisterHandler(bot.HandlerTypeCallbackQueryData, "linkg_google", bot.MatchTypeExact, b.linkGoogleAccountHandler)
+	b.chatBot.RegisterHandler(bot.HandlerTypeCallbackQueryData, "unlink_google", bot.MatchTypeExact, b.unlinkGoogleAccountHandler)
+	b.chatBot.RegisterHandler(bot.HandlerTypeCallbackQueryData, "share_location", bot.MatchTypeExact, b.shareLocationHandler)
+	b.chatBot.RegisterHandler(bot.HandlerTypeCallbackQueryData, "set_timezone", bot.MatchTypeExact, b.shareLocationHandler)
+	b.chatBot.RegisterHandler(bot.HandlerTypeCallbackQueryData, "", bot.MatchTypeContains, b.locationHandler)
 
 	b.chatBot.Start(b.ctx)
 	return nil
@@ -82,7 +106,7 @@ func (b *Bot) Stop() {
 func (b *Bot) startHandler(ctx context.Context, botAPI *bot.Bot, update *models.Update) {
 	chatID := update.Message.Chat.ID
 
-	user := storage.User{
+	user := model.User{
 		TelegramID: chatID,
 		Username:   update.Message.From.Username,
 	}
@@ -91,7 +115,71 @@ func (b *Bot) startHandler(ctx context.Context, botAPI *bot.Bot, update *models.
 		b.sendMessage(ctx, chatID, err.Error(), "")
 		return
 	}
-	b.sendMessage(ctx, chatID, "Link your Calendar: /linkgoogle", "")
+
+	b.sendMessage(ctx, chatID, "Welcome to Schedulr! \nSet up your profile.", "")
+	b.sendSettingsKeyboard(ctx, botAPI, update)
+}
+
+// settingsHandler sends a message with an inline keyboard.
+func (b *Bot) settingsHandler(ctx context.Context, botAPI *bot.Bot, update *models.Update) {
+	b.sendSettingsKeyboard(ctx, botAPI, update)
+}
+
+func (b *Bot) sendSettingsKeyboard(ctx context.Context, botAPI *bot.Bot, update *models.Update) {
+	chatID := update.Message.Chat.ID
+
+	userProfile, err := b.userService.GetUserProfileByTelegramID(chatID)
+	if err != nil {
+		b.sendMessage(ctx, chatID, err.Error(), "")
+		return
+	}
+
+	var buttons [][]models.InlineKeyboardButton = make([][]models.InlineKeyboardButton, 0)
+
+	googleAccount := userProfile.LinkedAccount(model.ProviderGoogle)
+	if googleAccount != nil {
+		buttons = append(buttons, []models.InlineKeyboardButton{
+			{
+				Text:         "Unlink Google Account",
+				CallbackData: "linkg_google",
+			},
+		})
+	} else {
+		buttons = append(buttons, []models.InlineKeyboardButton{
+			{
+				Text:         "Link Google Account",
+				CallbackData: "unlink_google",
+			},
+		})
+	}
+
+	buttons = append(buttons, []models.InlineKeyboardButton{
+		{
+			Text:         "Share Location",
+			CallbackData: "share_location",
+		},
+		{
+			Text:         "Set Timezone",
+			CallbackData: "set_timezone",
+		},
+	})
+
+	// Create an inline keyboard with three buttons.
+	inlineKeyboard := models.InlineKeyboardMarkup{
+		InlineKeyboard: buttons,
+	}
+
+	params := &bot.SendMessageParams{
+		ChatID: chatID,
+		Text: `Settings:
+
+		- Google Account: ` + googleAccount.AccountName + `
+		- Timezone: ` + userProfile.User.Timezone + `
+		`,
+		ReplyMarkup: inlineKeyboard,
+	}
+
+	botAPI.SendMessage(ctx, params)
 }
 
 // linkGoogleAccountHandler returns the OAuth2 URL for linking a Google account.
@@ -112,13 +200,68 @@ func (b *Bot) linkGoogleAccountHandler(ctx context.Context, botAPI *bot.Bot, upd
 		b.sendMessage(ctx, chatID, err.Error(), "")
 		return
 	}
+
 	b.sendMessage(ctx, chatID, "Link your Google Calendar: "+link, "")
+}
+
+func (b *Bot) unlinkGoogleAccountHandler(ctx context.Context, botAPI *bot.Bot, update *models.Update) {
+	chatID := update.Message.Chat.ID
+	deleted, err := b.userService.UnlinkAccount(chatID, model.ProviderGoogle)
+	if err != nil {
+		b.sendMessage(ctx, chatID, err.Error(), "")
+		return
+	}
+
+	if deleted {
+		b.sendMessage(ctx, chatID, "Google account unlinked successfully.", "")
+	} else {
+		b.sendMessage(ctx, chatID, "Google account not linked.", "")
+
+	}
+}
+
+func (b *Bot) shareLocationHandler(ctx context.Context, botAPI *bot.Bot, update *models.Update) {
+	btn := models.KeyboardButton{
+		RequestLocation: true,
+		Text:            "Share Location to set Timezone. Works only on mobile.",
+	}
+
+	markup := models.ReplyKeyboardMarkup{
+		Keyboard:        [][]models.KeyboardButton{{btn}},
+		OneTimeKeyboard: true,
+	}
+
+	msg := &bot.SendMessageParams{
+		ChatID:      update.CallbackQuery.From.ID,
+		Text:        "Share your location",
+		ReplyMarkup: markup,
+	}
+
+	botAPI.SendMessage(ctx, msg)
+}
+
+func (b *Bot) locationHandler(ctx context.Context, botAPI *bot.Bot, update *models.Update) {
+	timeZone, err := b.userService.UpdateUserTimeZone(
+		update.Message.Chat.ID,
+		update.Message.Location.Latitude,
+		update.Message.Location.Longitude,
+	)
+
+	if err != nil {
+		b.sendMessage(ctx, update.Message.Chat.ID, err.Error(), "")
+		return
+	}
+
+	b.sendMessage(ctx, update.Message.Chat.ID, "Timezone set to "+timeZone, "")
 }
 
 // defaultHandler now checks if the message is forwarded and buffers it.
 func (b *Bot) defaultHandler(ctx context.Context, botAPI *bot.Bot, update *models.Update) {
-	b.bufferUpdate(ctx, update)
-	// If the message has no text or caption, do nothing.
+	if update.Message.Location != nil {
+		b.locationHandler(ctx, botAPI, update)
+	} else if update.Message.Caption != "" || update.Message.Text != "" {
+		b.bufferUpdate(ctx, update)
+	}
 }
 
 // bufferForwardedText buffers forwarded text messages by chat.

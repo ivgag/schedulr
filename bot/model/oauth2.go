@@ -22,10 +22,11 @@ package model
 import "time"
 
 type Token struct {
+	UserID       int       `json:"user_id"`
+	Provider     Provider  `json:"provider"`
 	AccessToken  string    `json:"access_token"`
 	RefreshToken string    `json:"refresh_token"`
 	Expiry       time.Time `json:"expires_at"`
-	Provider     Provider  `json:"provider"`
 }
 
 type Provider string
