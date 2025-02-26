@@ -24,6 +24,7 @@ import (
 	"errors"
 
 	"github.com/ivgag/schedulr/model"
+	"github.com/ivgag/schedulr/utils"
 	"github.com/rs/zerolog/log"
 	"github.com/sashabaranov/go-openai/jsonschema"
 
@@ -49,7 +50,10 @@ func (d *DeepSeekAI) Provider() AIProvider {
 	return ProviderDeepSeek
 }
 
-func (d *DeepSeekAI) ExtractCalendarEvents(messages *[]model.TextMessage) (*AiResponse[[]model.Event], model.Error) {
+func (d *DeepSeekAI) ExtractCalendarEvents(
+	timeZone string,
+	messages *[]model.TextMessage,
+) (*AiResponse[[]model.Event], model.Error) {
 	var response AiResponse[[]model.Event]
 	var schema AiResponse[[]EventSchema]
 	responseSchema, err := jsonschema.GenerateSchemaForType(schema)
@@ -61,7 +65,7 @@ func (d *DeepSeekAI) ExtractCalendarEvents(messages *[]model.TextMessage) (*AiRe
 	request := &deepseek.ChatCompletionRequest{
 		Model: d.config.Model,
 		Messages: []deepseek.ChatCompletionMessage{
-			{Role: constants.ChatMessageRoleSystem, Content: extractCalendarEventsPrompt()},
+			{Role: constants.ChatMessageRoleSystem, Content: extractCalendarEventsPrompt(utils.Now(timeZone))},
 			{Role: constants.ChatMessageRoleSystem, Content: "Response JSON Format: " + string(jsonSchema)},
 			{Role: constants.ChatMessageRoleUser, Content: messagesToText(messages)},
 		},

@@ -174,7 +174,7 @@ func (b *Bot) sendSettingsKeyboard(ctx context.Context, botAPI *bot.Bot, update 
 		Text: `Settings:
 
 		- Google Account: ` + googleAccount.AccountName + `
-		- Timezone: ` + userProfile.User.Timezone + `
+		- Timezone: ` + userProfile.User.TimeZone + `
 		`,
 		ReplyMarkup: inlineKeyboard,
 	}

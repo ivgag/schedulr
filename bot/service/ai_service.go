@@ -51,7 +51,10 @@ type AIService struct {
 	config *AIConfig
 }
 
-func (s *AIService) ExtractCalendarEvents(messages *[]model.TextMessage) (*[]model.Event, model.Error) {
+func (s *AIService) ExtractCalendarEvents(
+	timeZone string,
+	messages *[]model.TextMessage,
+) (*[]model.Event, model.Error) {
 	for _, service := range s.config.Priority {
 		ai, ok := s.aisMap[strings.ToLower(service)]
 		if !ok {
@@ -63,7 +66,7 @@ func (s *AIService) ExtractCalendarEvents(messages *[]model.TextMessage) (*[]mod
 			Str("provider", string(ai.Provider())).
 			Msg("Extracting events with AI provider")
 
-		response, err := s.extractEventsWithRetires(messages, ai)
+		response, err := s.extractEventsWithRetires(timeZone, messages, ai)
 		if err != nil {
 			log.Warn().
 				Interface("messages", messages).
@@ -85,12 +88,13 @@ func (s *AIService) ExtractCalendarEvents(messages *[]model.TextMessage) (*[]mod
 }
 
 func (s *AIService) extractEventsWithRetires(
+	timeZone string,
 	messages *[]model.TextMessage,
 	agent ai.AI,
 ) (*ai.AiResponse[[]model.Event], model.Error) {
 	operation := func() (ai.AiResponse[[]model.Event], error) {
 		var apiError = ai.ApiError{}
-		response, err := agent.ExtractCalendarEvents(messages)
+		response, err := agent.ExtractCalendarEvents(timeZone, messages)
 		if err == nil {
 			return *response, nil
 		} else if errors.As(err, &apiError) && apiError.Retryable {

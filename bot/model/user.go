@@ -20,7 +20,7 @@ type User struct {
 	ID         int
 	TelegramID int64
 	Username   string
-	Timezone   string
+	TimeZone   string
 }
 
 type LinkedAccount struct {

@@ -23,7 +23,7 @@ func NewGoogleCalendarService(tokenService *GoogleTokenService) *GoogleCalendarS
 }
 
 // CreateEvent creates a new calendar event using the provided token and event data.
-func (c *GoogleCalendarService) CreateEvent(userID int, event *model.Event) (model.ScheduledEvent, error) {
+func (c *GoogleCalendarService) CreateEvent(userID int, timeZone string, event *model.Event) (model.ScheduledEvent, error) {
 	client, err := c.tokenService.ClientForUser(userID)
 	if err != nil {
 		return model.ScheduledEvent{}, err
@@ -41,7 +41,11 @@ func (c *GoogleCalendarService) CreateEvent(userID int, event *model.Event) (mod
 		return model.ScheduledEvent{}, err
 	}
 
-	calEvent, err := toGoogleCalendarEvent(event, cal.TimeZone)
+	if timeZone == "" {
+		timeZone = cal.TimeZone
+	}
+
+	calEvent, err := toGoogleCalendarEvent(event, timeZone)
 	if err != nil {
 		return model.ScheduledEvent{}, err
 	}

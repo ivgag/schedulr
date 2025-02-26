@@ -35,11 +35,11 @@ const (
 )
 
 type AI interface {
-	ExtractCalendarEvents(messages *[]model.TextMessage) (*AiResponse[[]model.Event], model.Error)
+	ExtractCalendarEvents(timeZone string, messages *[]model.TextMessage) (*AiResponse[[]model.Event], model.Error)
 	Provider() AIProvider
 }
 
-func extractCalendarEventsPrompt() string {
+func extractCalendarEventsPrompt(now time.Time) string {
 	return fmt.Sprintf(`
 		You are an AI assistant that extracts structured event details from user input 
 		(such as announcements, tickets, advertisements, or related content) and converts 
@@ -81,7 +81,7 @@ func extractCalendarEventsPrompt() string {
 		• Links must be valid URLs.
 		• The output must include a brief explanation of the result.
 	`,
-		time.Now().Format(time.DateTime),
+		now.Format(time.DateTime),
 	)
 }
 

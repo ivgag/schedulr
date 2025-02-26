@@ -113,7 +113,7 @@ func (s *UserService) UpdateUserTimeZone(telegramID int64, latitude float64, lon
 		return "", err
 	}
 
-	user.Timezone = timezone.TimezoneId
+	user.TimeZone = timezone.TimezoneId
 	err = s.userRepository.Save(&user)
 	if err != nil {
 		return "", err

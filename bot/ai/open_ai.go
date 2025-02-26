@@ -24,6 +24,7 @@ import (
 	"errors"
 
 	"github.com/ivgag/schedulr/model"
+	"github.com/ivgag/schedulr/utils"
 	"github.com/rs/zerolog/log"
 	openai "github.com/sashabaranov/go-openai"
 	"github.com/sashabaranov/go-openai/jsonschema"
@@ -46,7 +47,7 @@ func (o *OpenAI) Provider() AIProvider {
 	return ProviderOpenAI
 }
 
-func (o *OpenAI) ExtractCalendarEvents(messages *[]model.TextMessage) (*AiResponse[[]model.Event], model.Error) {
+func (o *OpenAI) ExtractCalendarEvents(timeZone string, messages *[]model.TextMessage) (*AiResponse[[]model.Event], model.Error) {
 	var response AiResponse[[]model.Event]
 	var schema AiResponse[[]EventSchema]
 	responseSchema, err := jsonschema.GenerateSchemaForType(schema)
@@ -58,7 +59,7 @@ func (o *OpenAI) ExtractCalendarEvents(messages *[]model.TextMessage) (*AiRespon
 			Messages: []openai.ChatCompletionMessage{
 				{
 					Role:    openai.ChatMessageRoleSystem,
-					Content: extractCalendarEventsPrompt(),
+					Content: extractCalendarEventsPrompt(utils.Now(timeZone)),
 				},
 				{
 					Role:    openai.ChatMessageRoleUser,
