@@ -7,7 +7,7 @@ import (
 	"github.com/ivgag/schedulr/tgbot"
 )
 
-func TestFormatMessageText(t *testing.T) {
+func TestFormatTextWithEntities(t *testing.T) {
 	tests := []struct {
 		name     string
 		text     string
@@ -65,7 +65,7 @@ func TestFormatMessageText(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := tgbot.FormatMessageText(tt.text, tt.entities)
+			got := tgbot.FormatTextWithEntities(tt.text, tt.entities)
 			if got != tt.want {
 				t.Errorf("formatMessageText() = %q, want %q", got, tt.want)
 			}

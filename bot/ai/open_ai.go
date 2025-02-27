@@ -46,7 +46,10 @@ func (o *OpenAI) Provider() AIProvider {
 	return ProviderOpenAI
 }
 
-func (o *OpenAI) ExtractCalendarEvents(messages *[]model.TextMessage) (*AiResponse[[]model.Event], model.Error) {
+func (o *OpenAI) ExtractCalendarEvents(
+	request *ExtractCalendarEventsRequest,
+	messages *[]model.TextMessage,
+) (*AiResponse[[]model.Event], model.Error) {
 	var response AiResponse[[]model.Event]
 	var schema AiResponse[[]EventSchema]
 	responseSchema, err := jsonschema.GenerateSchemaForType(schema)
@@ -58,7 +61,7 @@ func (o *OpenAI) ExtractCalendarEvents(messages *[]model.TextMessage) (*AiRespon
 			Messages: []openai.ChatCompletionMessage{
 				{
 					Role:    openai.ChatMessageRoleSystem,
-					Content: extractCalendarEventsPrompt(),
+					Content: request.Prompt(),
 				},
 				{
 					Role:    openai.ChatMessageRoleUser,

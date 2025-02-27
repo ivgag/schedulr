@@ -22,6 +22,7 @@ package utils
 import (
 	"fmt"
 	"os"
+	"time"
 )
 
 func GetenvOrPanic(key string) string {
@@ -40,4 +41,16 @@ func GetenvOrError(key string) (string, error) {
 	}
 
 	return value, nil
+}
+
+func Now(timeZone string) time.Time {
+	if timeZone == "" {
+		return time.Now()
+	}
+
+	loc, err := time.LoadLocation(timeZone)
+	if err != nil {
+		return time.Now()
+	}
+	return time.Now().In(loc)
 }

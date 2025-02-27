@@ -35,11 +35,20 @@ const (
 )
 
 type AI interface {
-	ExtractCalendarEvents(messages *[]model.TextMessage) (*AiResponse[[]model.Event], model.Error)
+	ExtractCalendarEvents(
+		request *ExtractCalendarEventsRequest,
+		messages *[]model.TextMessage,
+	) (*AiResponse[[]model.Event], model.Error)
+
 	Provider() AIProvider
 }
 
-func extractCalendarEventsPrompt() string {
+type ExtractCalendarEventsRequest struct {
+	Now      time.Time
+	Calendar model.Calendar
+}
+
+func (req *ExtractCalendarEventsRequest) Prompt() string {
 	return fmt.Sprintf(`
 		You are an AI assistant that extracts structured event details from user input 
 		(such as announcements, tickets, advertisements, or related content) and converts 
@@ -50,11 +59,16 @@ func extractCalendarEventsPrompt() string {
 		1. Extract Key Event Details
 		• Title (required)
 		• Description – Preserve all critical information (e.g., price, links, host’s name, 
-			participants, rules, format). Keep these details as close to the original text as possible.
+			participants, rules, format).
 		• Start Date/Time (required)
 		• End Date/Time (required if available; otherwise set a default).
+		• TimeZone - If the input contains information about timezone use it, 
+			if the input contains inforamtion about the place, use it to define the time zone. 
+			The start and the end can have different time zones (e.g. airplane tickets).
+			If there is no information about the time zone use the user's time zone is %s.
 		• Location (if provided).
 		• Event Type – Must be one of: "event", "reminder", "meeting", "birthday", "holiday", "other".
+		• Deep Link – Create a universal deeplink (for browser and mobile) for %s calendar.
 
 		2. Resolve Relative Dates
 		Use the provided reference date (e.g., "Today is %s") to convert relative expressions 
@@ -76,12 +90,14 @@ func extractCalendarEventsPrompt() string {
 		Parse all text to identify event-related information.
 
 		Output Format
+		• Description must be concise and informative and must not repeat information from other fields.
 		• Dates/times must follow the format: "YYYY-MM-DD HH:MM:SS".
+		• Time zones must be in the INNA format.
 		• Prices must be numeric or "free".
 		• Links must be valid URLs.
 		• The output must include a brief explanation of the result.
 	`,
-		time.Now().Format(time.DateTime),
+		req.Now.Location().String(), req.Calendar, req.Now.Format(time.RFC1123),
 	)
 }
 
@@ -117,10 +133,16 @@ type AiResponse[T any] struct {
 }
 
 type EventSchema struct {
-	Title       string `json:"title"`
-	Description string `json:"description"`
-	Start       string `json:"start"`
-	End         string `json:"end"`
-	Location    string `json:"location"`
-	EventType   string `json:"eventType"`
+	Title       string         `json:"title"`
+	Description string         `json:"description"`
+	Start       DateTimeSchema `json:"start"`
+	End         DateTimeSchema `json:"end"`
+	Location    string         `json:"location"`
+	EventType   string         `json:"eventType"`
+	DeepLink    string         `json:"deepLink"`
+}
+
+type DateTimeSchema struct {
+	Timestamp string `json:"timestamp"`
+	TimeZone  string `json:"timeZone"`
 }

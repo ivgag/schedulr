@@ -23,4 +23,6 @@ import "github.com/ivgag/schedulr/model"
 
 type CalendarService interface {
 	CreateEvent(userID int, event *model.Event) (model.ScheduledEvent, error)
+
+	Provider() model.Provider
 }

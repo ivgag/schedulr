@@ -49,7 +49,10 @@ func (d *DeepSeekAI) Provider() AIProvider {
 	return ProviderDeepSeek
 }
 
-func (d *DeepSeekAI) ExtractCalendarEvents(messages *[]model.TextMessage) (*AiResponse[[]model.Event], model.Error) {
+func (d *DeepSeekAI) ExtractCalendarEvents(
+	request1 *ExtractCalendarEventsRequest,
+	messages *[]model.TextMessage,
+) (*AiResponse[[]model.Event], model.Error) {
 	var response AiResponse[[]model.Event]
 	var schema AiResponse[[]EventSchema]
 	responseSchema, err := jsonschema.GenerateSchemaForType(schema)
@@ -61,7 +64,7 @@ func (d *DeepSeekAI) ExtractCalendarEvents(messages *[]model.TextMessage) (*AiRe
 	request := &deepseek.ChatCompletionRequest{
 		Model: d.config.Model,
 		Messages: []deepseek.ChatCompletionMessage{
-			{Role: constants.ChatMessageRoleSystem, Content: extractCalendarEventsPrompt()},
+			{Role: constants.ChatMessageRoleSystem, Content: request1.Prompt()},
 			{Role: constants.ChatMessageRoleSystem, Content: "Response JSON Format: " + string(jsonSchema)},
 			{Role: constants.ChatMessageRoleUser, Content: messagesToText(messages)},
 		},

@@ -30,40 +30,42 @@ type ScheduledEvent struct {
 }
 
 type Event struct {
-	Title       string    `json:"title"`
-	Description string    `json:"description"`
-	Start       time.Time `json:"start"`
-	End         time.Time `json:"end"`
-	Location    string    `json:"location"`
-	EventType   string    `json:"eventType"`
+	Title       string   `json:"title"`
+	Description string   `json:"description"`
+	Start       DateTime `json:"start"`
+	End         DateTime `json:"end"`
+	Location    string   `json:"location"`
+	EventType   string   `json:"eventType"`
+	DeepLink    string   `json:"deepLink"`
 }
 
-func (e *Event) MarshalJSON() ([]byte, error) {
-	type Alias Event
+type DateTime struct {
+	Timestamp time.Time `json:"timestamp"`
+	TimeZone  string    `json:"timeZone"`
+}
+
+func (dt *DateTime) MarshalJSON() ([]byte, error) {
+	type Alias DateTime
 	return json.Marshal(&struct {
 		*Alias
-		Start string `json:"start"`
-		End   string `json:"end"`
+		Timestamp string `json:"timestamp"`
 	}{
-		Alias: (*Alias)(e),
-		Start: e.Start.Format(time.DateTime),
-		End:   e.End.Format(time.DateTime),
+		Alias:     (*Alias)(dt),
+		Timestamp: dt.Timestamp.Format(time.DateTime),
 	})
 }
 
-func (e *Event) UnmarshalJSON(data []byte) error {
-	type Alias Event
+func (dt *DateTime) UnmarshalJSON(data []byte) error {
+	type Alias DateTime
 	aux := &struct {
 		*Alias
-		Start string `json:"start"`
-		End   string `json:"end"`
+		Timestamp string `json:"timestamp"`
 	}{
-		Alias: (*Alias)(e),
+		Alias: (*Alias)(dt),
 	}
 	if err := json.Unmarshal(data, &aux); err != nil {
 		return err
 	}
-	e.Start, _ = time.Parse(time.DateTime, aux.Start)
-	e.End, _ = time.Parse(time.DateTime, aux.End)
+	dt.Timestamp, _ = time.Parse(time.DateTime, aux.Timestamp)
 	return nil
 }

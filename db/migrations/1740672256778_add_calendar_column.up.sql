@@ -1,0 +1,1 @@
+alter table users add column preferred_calendar text not null default 'google';

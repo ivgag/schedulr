@@ -60,13 +60,14 @@ func main() {
 	tokenServices := map[model.Provider]service.TokenService{
 		model.ProviderGoogle: googleTokenSvc,
 	}
-	userSvc := service.NewUserService(userRepo, tokenServices)
+	timeZoneService := service.NewTimezoneService(&cfg.Google)
+	userSvc := service.NewUserService(userRepo, tokenServices, *timeZoneService, linkedAccountRepo)
 
 	// Initialize calendar and event services.
-	googleCalendarSvc := service.NewGoogleCalendarService(googleTokenSvc)
-	calendarServices := map[model.Provider]service.CalendarService{
-		model.ProviderGoogle: googleCalendarSvc,
+	calendarServices := []service.CalendarService{
+		service.NewGoogleCalendarService(googleTokenSvc),
 	}
+
 	eventSvc := service.NewEventService(*aiSvc, *userSvc, calendarServices)
 
 	// Start Telegram bot.

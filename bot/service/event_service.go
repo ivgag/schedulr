@@ -26,12 +26,17 @@ import (
 func NewEventService(
 	aiService AIService,
 	userService UserService,
-	clanedarServices map[model.Provider]CalendarService,
+	clanedarServices []CalendarService,
 ) *EventService {
+	calServices := make(map[model.Provider]CalendarService)
+	for _, service := range clanedarServices {
+		calServices[service.Provider()] = service
+	}
+
 	return &EventService{
 		aiService:        aiService,
 		userService:      userService,
-		calendarServices: clanedarServices,
+		calendarServices: calServices,
 	}
 }
 
@@ -41,25 +46,48 @@ type EventService struct {
 	calendarServices map[model.Provider]CalendarService
 }
 
-func (s *EventService) CreateEventsFromUserMessage(telegramID int64, messages []model.TextMessage) ([]model.ScheduledEvent, error) {
-	user, err := s.userService.GetUserByTelegramID(telegramID)
+func (s *EventService) CreateEventsFromUserMessage(
+	telegramID int64,
+	messages *[]model.TextMessage,
+) (*[]model.ScheduledEvent, error) {
+
+	profile, err := s.userService.GetUserProfileByTelegramID(telegramID)
 	if err != nil {
 		return nil, err
 	}
 
-	events, err := s.aiService.ExtractCalendarEvents(&messages)
+	events, err := s.aiService.ExtractCalendarEvents(profile.User.TimeZone, messages)
 	if err != nil {
 		return nil, err
+	}
+
+	var calSrv CalendarService
+	for provider, service := range s.calendarServices {
+		if profile.LinkedAccount(provider) != nil {
+			calSrv = service
+			break
+		}
 	}
 
 	var scheduledEvents []model.ScheduledEvent = make([]model.ScheduledEvent, len(*events))
 	for i, event := range *events {
-		scheduledEvent, err := s.calendarServices[model.ProviderGoogle].CreateEvent(user.ID, &event)
+		var scheduledEvent model.ScheduledEvent
+		var err error
+
+		if calSrv != nil {
+			scheduledEvent, err = calSrv.CreateEvent(profile.User.ID, &event)
+		} else {
+			scheduledEvent = model.ScheduledEvent{
+				Event: event,
+				Link:  "",
+			}
+		}
+
 		if err != nil {
 			return nil, err
 		}
 		scheduledEvents[i] = scheduledEvent
 	}
 
-	return scheduledEvents, nil
+	return &scheduledEvents, nil
 }

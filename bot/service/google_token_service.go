@@ -24,17 +24,13 @@ import (
 	"fmt"
 	"net/http"
 	"time"
-	_ "time/tzdata"
 
-	"github.com/cenkalti/backoff/v5"
 	"github.com/gofrs/uuid"
 	"github.com/ivgag/schedulr/model"
 	"github.com/ivgag/schedulr/storage"
-	"github.com/rs/zerolog/log"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/calendar/v3"
-	"google.golang.org/api/option"
 )
 
 var stateTokens = make(map[string]int)
@@ -96,7 +92,7 @@ func (s *GoogleTokenService) ExchangeCodeForToken(state string, code string) err
 		return err
 	}
 
-	err = s.linkedAccountsRepository.Save(storage.LinkedAccount{
+	err = s.linkedAccountsRepository.Save(&model.LinkedAccount{
 		UserID:       usedID,
 		Provider:     model.ProviderGoogle,
 		AccessToken:  gToken.AccessToken,
@@ -131,7 +127,7 @@ func (s *GoogleTokenService) ClientForUser(userID int) (*http.Client, error) {
 		account.RefreshToken = newToken.RefreshToken
 		account.Expiry = newToken.Expiry.UTC()
 
-		err = s.linkedAccountsRepository.Save(account)
+		err = s.linkedAccountsRepository.Save(&account)
 		if err != nil {
 			return nil, err
 		}
@@ -146,113 +142,9 @@ func (s *GoogleTokenService) ClientForUser(userID int) (*http.Client, error) {
 	return s.oauth2Config.Client(context.Background(), oauthToken), nil
 }
 
-// CalendarService handles calendar-related operations.
-type GoogleCalendarService struct {
-	tokenService *GoogleTokenService
-}
-
-// NewGoogleCalendarService creates a new GoogleCalendarService.
-func NewGoogleCalendarService(tokenService *GoogleTokenService) *GoogleCalendarService {
-	return &GoogleCalendarService{tokenService: tokenService}
-}
-
-// CreateEvent creates a new calendar event using the provided token and event data.
-func (c *GoogleCalendarService) CreateEvent(userID int, event *model.Event) (model.ScheduledEvent, error) {
-	client, err := c.tokenService.ClientForUser(userID)
-	if err != nil {
-		return model.ScheduledEvent{}, err
-	}
-
-	ctx := context.Background()
-
-	srv, err := calendar.NewService(ctx, option.WithHTTPClient(client))
-	if err != nil {
-		return model.ScheduledEvent{}, err
-	}
-
-	cal, err := srv.Calendars.Get("primary").Do()
-	if err != nil {
-		return model.ScheduledEvent{}, err
-	}
-
-	calEvent, err := toGoogleCalendarEvent(event, cal.TimeZone)
-	if err != nil {
-		return model.ScheduledEvent{}, err
-	}
-
-	link, err := c.insertEventWithRetries(srv, calEvent)
-	if err != nil {
-		log.Error().
-			Interface("event", calEvent).
-			Err(err).
-			Msg("Failed to create event")
-
-		return model.ScheduledEvent{}, err
-	}
-
-	return model.ScheduledEvent{
-		Event: *event,
-		Link:  link,
-	}, nil
-
-}
-
-func (c *GoogleCalendarService) insertEventWithRetries(
-	srv *calendar.Service,
-	event *calendar.Event,
-) (string, error) {
-	operation := func() (string, error) {
-		createdEvent, err := srv.Events.Insert("primary", event).Do()
-		if err != nil {
-			return "", err
-		}
-
-		return createdEvent.HtmlLink, nil
-	}
-
-	return backoff.Retry(
-		context.Background(),
-		operation,
-		backoff.WithBackOff(backoff.NewExponentialBackOff()),
-		backoff.WithMaxTries(3),
-	)
-}
-
-func toGoogleCalendarEvent(event *model.Event, timezone string) (*calendar.Event, error) {
-	loc, err := time.LoadLocation(timezone)
-	if err != nil {
-		log.Error().
-			Str("timezone", timezone).
-			Err(err).
-			Msg("Failed to load timezone")
-
-		return nil, err
-	}
-
-	startTime := toLocalTime(event.Start, loc)
-	endTime := toLocalTime(event.End, loc)
-
-	return &calendar.Event{
-		Summary:     event.Title,
-		Location:    event.Location,
-		Description: event.Description,
-		Start: &calendar.EventDateTime{
-			DateTime: startTime.Format(time.RFC3339),
-			TimeZone: timezone,
-		},
-		End: &calendar.EventDateTime{
-			DateTime: endTime.Format(time.RFC3339),
-			TimeZone: timezone,
-		},
-	}, nil
-}
-
 type GoogleConfig struct {
+	ApiKey       string `mapstructure:"api_key"`
 	ClientID     string `mapstructure:"client_id"`
 	ClientSecret string `mapstructure:"client_secret"`
 	RedirectURL  string `mapstructure:"redirect_url"`
-}
-
-func toLocalTime(t time.Time, loc *time.Location) time.Time {
-	return time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second(), t.Nanosecond(), loc)
 }

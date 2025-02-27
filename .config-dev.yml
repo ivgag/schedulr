@@ -1,13 +1,18 @@
 telegram_bot:
   token: ""
+  url: "https://t.me/schedulr_test_bot"
 
-openai:
-  api_key: ""
-
-deepseek:
-  api_key: ""
+ai: 
+  priority: deepseek, openai
+  openai:
+    api_key: ""
+    model: "gpt-4o-mini"
+  deepseek:
+    api_key: ""
+    model: "deepseek-chat"
 
 google:
+  api_key: ""
   client_id: ""
   client_secret: ""
   redirect_url: "http://localhost:8080/oauth2callback/google"

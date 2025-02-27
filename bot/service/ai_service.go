@@ -23,6 +23,7 @@ import (
 	"context"
 	"errors"
 	"strings"
+	"time"
 
 	"github.com/cenkalti/backoff/v5"
 	"github.com/rs/zerolog/log"
@@ -51,7 +52,10 @@ type AIService struct {
 	config *AIConfig
 }
 
-func (s *AIService) ExtractCalendarEvents(messages *[]model.TextMessage) (*[]model.Event, model.Error) {
+func (s *AIService) ExtractCalendarEvents(
+	timeZone string,
+	messages *[]model.TextMessage,
+) (*[]model.Event, model.Error) {
 	for _, service := range s.config.Priority {
 		ai, ok := s.aisMap[strings.ToLower(service)]
 		if !ok {
@@ -63,7 +67,7 @@ func (s *AIService) ExtractCalendarEvents(messages *[]model.TextMessage) (*[]mod
 			Str("provider", string(ai.Provider())).
 			Msg("Extracting events with AI provider")
 
-		response, err := s.extractEventsWithRetires(messages, ai)
+		response, err := s.extractEventsWithRetires(timeZone, messages, ai)
 		if err != nil {
 			log.Warn().
 				Interface("messages", messages).
@@ -85,12 +89,16 @@ func (s *AIService) ExtractCalendarEvents(messages *[]model.TextMessage) (*[]mod
 }
 
 func (s *AIService) extractEventsWithRetires(
+	timeZone string,
 	messages *[]model.TextMessage,
 	agent ai.AI,
 ) (*ai.AiResponse[[]model.Event], model.Error) {
 	operation := func() (ai.AiResponse[[]model.Event], error) {
 		var apiError = ai.ApiError{}
-		response, err := agent.ExtractCalendarEvents(messages)
+		response, err := agent.ExtractCalendarEvents(&ai.ExtractCalendarEventsRequest{
+			Now:      nowInTimezone(timeZone),
+			Calendar: model.CalendarGoogle,
+		}, messages)
 		if err == nil {
 			return *response, nil
 		} else if errors.As(err, &apiError) && apiError.Retryable {
@@ -117,4 +125,20 @@ type AIConfig struct {
 	Deepseek ai.DeepseekConfig `mapstructure:"deepseek"`
 	OpenAI   ai.OpenAIConfig   `mapstructure:"openai"`
 	Priority []string          `mapstructure:"priority"`
+}
+
+func nowInTimezone(timeZone string) time.Time {
+	if timeZone == "" {
+		return time.Now()
+	}
+
+	loc, err := time.LoadLocation(timeZone)
+	if err != nil {
+		log.Error().
+			Str("timezone", timeZone).
+			Err(err).
+			Msg("Failed to load timezone")
+		return time.Now()
+	}
+	return time.Now().In(loc)
 }
