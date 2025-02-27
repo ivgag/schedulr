@@ -12,7 +12,6 @@ replace (
 require (
 	github.com/cohesion-org/deepseek-go v1.2.4
 	github.com/ivgag/schedulr/model v0.0.0
-	github.com/ivgag/schedulr/utils v0.0.0
 	github.com/rs/zerolog v1.33.0
 	github.com/sashabaranov/go-openai v1.37.0
 )

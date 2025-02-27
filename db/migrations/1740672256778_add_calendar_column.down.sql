@@ -1,0 +1,1 @@
+alter table users drop column preferred_calendar;

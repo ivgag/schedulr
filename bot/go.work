@@ -9,5 +9,4 @@ use (
 	./storage
 	./tgbot
 	./utils
-	./event
 )

@@ -35,7 +35,7 @@ func NewUserRepository(db *sql.DB) UserRepository {
 
 func (r *PgUserRepository) GetByID(id int) (model.User, error) {
 	var user model.User
-	query := "SELECT id, telegram_id, username, timezone FROM users WHERE id = $1"
+	query := "SELECT id, telegram_id, username, timezone, preferred_calendar FROM users WHERE id = $1"
 	err := r.db.QueryRow(query, id).Scan(&user.ID, &user.TelegramID, &user.Username)
 
 	if err != nil && err.Error() == noRowsError {
@@ -50,8 +50,17 @@ func (r *PgUserRepository) GetByID(id int) (model.User, error) {
 // GetByTelegramID implements UserRepository.
 func (r *PgUserRepository) GetByTelegramID(telegramID int64) (model.User, error) {
 	var user model.User
-	query := "SELECT id, telegram_id, username, timezone FROM users WHERE telegram_id = $1"
-	err := r.db.QueryRow(query, telegramID).Scan(&user.ID, &user.TelegramID, &user.Username, &user.TimeZone)
+	query := "SELECT id, telegram_id, username, timezone, preferred_calendar FROM users WHERE telegram_id = $1"
+	err := r.db.QueryRow(
+		query,
+		telegramID,
+	).Scan(
+		&user.ID,
+		&user.TelegramID,
+		&user.Username,
+		&user.TimeZone,
+		&user.PreferredCalendar,
+	)
 
 	if err != nil && err.Error() == noRowsError {
 		return model.User{}, model.NotFoundError{Message: "user not found"}
@@ -64,11 +73,20 @@ func (r *PgUserRepository) GetByTelegramID(telegramID int64) (model.User, error)
 
 func (r *PgUserRepository) Save(user *model.User) error {
 	query := `
-	INSERT INTO users(telegram_id, username, timezone)
-	VALUES($1, $2, $3)
+	INSERT INTO users(telegram_id, username, timezone, preferred_calendar)
+	VALUES($1, $2, $3, $4)
 	ON CONFLICT (telegram_id)
-	DO UPDATE SET telegram_id = users.telegram_id, username = EXCLUDED.username, timezone = EXCLUDED.timezone
+	DO UPDATE SET telegram_id = users.telegram_id, 
+		username = EXCLUDED.username, 
+		timezone = EXCLUDED.timezone,
+		preferred_calendar = EXCLUDED.preferred_calendar
 	RETURNING id;
 	`
-	return r.db.QueryRow(query, user.TelegramID, user.Username, user.TimeZone).Scan(&user.ID)
+	return r.db.QueryRow(
+		query,
+		user.TelegramID,
+		user.Username,
+		user.TimeZone,
+		user.PreferredCalendar,
+	).Scan(&user.ID)
 }

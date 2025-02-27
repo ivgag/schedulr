@@ -47,10 +47,6 @@ type UserService struct {
 	linkedAccountsRepository storage.LinkedAccountRepository
 }
 
-func (s *UserService) GetUserByID(id int) (model.User, error) {
-	return s.userRepository.GetByID(id)
-}
-
 func (s *UserService) GetUserByTelegramID(telegramID int64) (model.User, error) {
 	return s.userRepository.GetByTelegramID(telegramID)
 }
@@ -120,4 +116,22 @@ func (s *UserService) UpdateUserTimeZone(telegramID int64, latitude float64, lon
 	}
 
 	return timezone.TimezoneId, nil
+}
+
+func (s *UserService) UpdateUserPreferredCalendar(telegramID int64, calendar model.Calendar) error {
+	for i, cal := range model.CalendarTypes() {
+		if cal == calendar {
+			break
+		} else if i == len(model.CalendarTypes())-1 {
+			return errors.New("invalid calendar")
+		}
+	}
+
+	user, err := s.GetUserByTelegramID(telegramID)
+	if err != nil {
+		return err
+	}
+
+	user.PreferredCalendar = calendar
+	return s.userRepository.Save(&user)
 }

@@ -22,8 +22,13 @@ func NewGoogleCalendarService(tokenService *GoogleTokenService) *GoogleCalendarS
 	return &GoogleCalendarService{tokenService: tokenService}
 }
 
+// Provider returns the provider of the calendar service.
+func (c *GoogleCalendarService) Provider() model.Provider {
+	return model.ProviderGoogle
+}
+
 // CreateEvent creates a new calendar event using the provided token and event data.
-func (c *GoogleCalendarService) CreateEvent(userID int, timeZone string, event *model.Event) (model.ScheduledEvent, error) {
+func (c *GoogleCalendarService) CreateEvent(userID int, event *model.Event) (model.ScheduledEvent, error) {
 	client, err := c.tokenService.ClientForUser(userID)
 	if err != nil {
 		return model.ScheduledEvent{}, err
@@ -36,16 +41,7 @@ func (c *GoogleCalendarService) CreateEvent(userID int, timeZone string, event *
 		return model.ScheduledEvent{}, err
 	}
 
-	cal, err := srv.Calendars.Get("primary").Do()
-	if err != nil {
-		return model.ScheduledEvent{}, err
-	}
-
-	if timeZone == "" {
-		timeZone = cal.TimeZone
-	}
-
-	calEvent, err := toGoogleCalendarEvent(event, timeZone)
+	calEvent, err := toGoogleCalendarEvent(event)
 	if err != nil {
 		return model.ScheduledEvent{}, err
 	}
@@ -88,19 +84,12 @@ func (c *GoogleCalendarService) insertEventWithRetries(
 	)
 }
 
-func toGoogleCalendarEvent(event *model.Event, timezone string) (*calendar.Event, error) {
-	loc, err := time.LoadLocation(timezone)
+func toGoogleCalendarEvent(event *model.Event) (*calendar.Event, error) {
+	startTime, err := toLocalTime(event.Start.Timestamp, event.Start.TimeZone)
+	endTime, err := toLocalTime(event.End.Timestamp, event.End.TimeZone)
 	if err != nil {
-		log.Error().
-			Str("timezone", timezone).
-			Err(err).
-			Msg("Failed to load timezone")
-
 		return nil, err
 	}
-
-	startTime := toLocalTime(event.Start, loc)
-	endTime := toLocalTime(event.End, loc)
 
 	return &calendar.Event{
 		Summary:     event.Title,
@@ -108,15 +97,29 @@ func toGoogleCalendarEvent(event *model.Event, timezone string) (*calendar.Event
 		Description: event.Description,
 		Start: &calendar.EventDateTime{
 			DateTime: startTime.Format(time.RFC3339),
-			TimeZone: timezone,
+			TimeZone: event.Start.TimeZone,
 		},
 		End: &calendar.EventDateTime{
 			DateTime: endTime.Format(time.RFC3339),
-			TimeZone: timezone,
+			TimeZone: event.End.TimeZone,
 		},
 	}, nil
 }
 
-func toLocalTime(t time.Time, loc *time.Location) time.Time {
-	return time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second(), t.Nanosecond(), loc)
+func toLocalTime(
+	t time.Time,
+	timezone string,
+) (time.Time, error) {
+
+	loc, err := time.LoadLocation(timezone)
+	if err != nil {
+		log.Error().
+			Str("timezone", timezone).
+			Err(err).
+			Msg("Failed to load timezone")
+
+		return t, err
+	}
+
+	return time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second(), t.Nanosecond(), loc), nil
 }

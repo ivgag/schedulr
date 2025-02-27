@@ -17,10 +17,11 @@ func (p UserProfile) LinkedAccount(provider Provider) *LinkedAccount {
 }
 
 type User struct {
-	ID         int
-	TelegramID int64
-	Username   string
-	TimeZone   string
+	ID                int
+	TelegramID        int64
+	Username          string
+	TimeZone          string
+	PreferredCalendar Calendar
 }
 
 type LinkedAccount struct {

@@ -22,7 +22,6 @@ package tgbot
 import (
 	"context"
 	"fmt"
-	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -32,6 +31,16 @@ import (
 	"github.com/ivgag/schedulr/model"
 	"github.com/ivgag/schedulr/service"
 	"github.com/rs/zerolog/log"
+)
+
+const (
+	startCommand    = "/start"
+	settingsCommand = "/settings"
+
+	shareLocationCallback  = "share_location"
+	updateCalendarCallback = "update_calendar"
+
+	selectCalendarPrefix = "select_calendar_"
 )
 
 // TelegramBotConfig remains unchanged.
@@ -84,16 +93,31 @@ func (b *Bot) Start() error {
 	}
 	b.chatBot = chatBot
 
-	b.chatBot.RegisterHandler(bot.HandlerTypeMessageText, "/start", bot.MatchTypeExact, b.startHandler)
-	b.chatBot.RegisterHandler(bot.HandlerTypeMessageText, "/settings", bot.MatchTypeExact, b.settingsHandler)
+	b.chatBot.RegisterHandler(bot.HandlerTypeMessageText, startCommand, bot.MatchTypeExact, b.startHandler)
+	b.chatBot.RegisterHandler(bot.HandlerTypeMessageText, settingsCommand, bot.MatchTypeExact, b.settingsHandler)
 
-	b.chatBot.RegisterHandler(bot.HandlerTypeCallbackQueryData, "linkg_google", bot.MatchTypeExact, b.linkGoogleAccountHandler)
-	b.chatBot.RegisterHandler(bot.HandlerTypeCallbackQueryData, "unlink_google", bot.MatchTypeExact, b.unlinkGoogleAccountHandler)
-	b.chatBot.RegisterHandler(bot.HandlerTypeCallbackQueryData, "share_location", bot.MatchTypeExact, b.shareLocationHandler)
-	b.chatBot.RegisterHandler(bot.HandlerTypeCallbackQueryData, "set_timezone", bot.MatchTypeExact, b.shareLocationHandler)
-	b.chatBot.RegisterHandler(bot.HandlerTypeCallbackQueryData, "", bot.MatchTypeContains, b.locationHandler)
+	b.chatBot.RegisterHandler(bot.HandlerTypeCallbackQueryData, shareLocationCallback, bot.MatchTypeExact, b.shareLocationHandler)
+	b.chatBot.RegisterHandler(bot.HandlerTypeCallbackQueryData, updateCalendarCallback, bot.MatchTypeExact, b.updateCalendarHandler)
+	b.chatBot.RegisterHandler(bot.HandlerTypeCallbackQueryData, selectCalendarPrefix, bot.MatchTypePrefix, b.selectCalendarHandler)
 
 	b.chatBot.Start(b.ctx)
+
+	b.chatBot.SetMyCommands(
+		b.ctx,
+		&bot.SetMyCommandsParams{
+			Commands: []models.BotCommand{
+				{
+					Command:     startCommand,
+					Description: "Start the bot",
+				},
+				{
+					Command:     settingsCommand,
+					Description: "Show settings",
+				},
+			},
+		},
+	)
+
 	return nil
 }
 
@@ -117,113 +141,58 @@ func (b *Bot) startHandler(ctx context.Context, botAPI *bot.Bot, update *models.
 	}
 
 	b.sendMessage(ctx, chatID, "Welcome to Schedulr! \nSet up your profile.", "")
-	b.sendSettingsKeyboard(ctx, botAPI, update)
+	b.sendSettingsKeyboard(ctx, botAPI, update.Message.From.ID)
 }
 
 // settingsHandler sends a message with an inline keyboard.
 func (b *Bot) settingsHandler(ctx context.Context, botAPI *bot.Bot, update *models.Update) {
-	b.sendSettingsKeyboard(ctx, botAPI, update)
+	b.sendSettingsKeyboard(ctx, botAPI, update.Message.From.ID)
 }
 
-func (b *Bot) sendSettingsKeyboard(ctx context.Context, botAPI *bot.Bot, update *models.Update) {
-	chatID := update.Message.Chat.ID
+func (b *Bot) sendSettingsKeyboard(ctx context.Context, botAPI *bot.Bot, chatID int64) {
 
-	userProfile, err := b.userService.GetUserProfileByTelegramID(chatID)
+	user, err := b.userService.GetUserByTelegramID(chatID)
 	if err != nil {
 		b.sendMessage(ctx, chatID, err.Error(), "")
 		return
 	}
 
 	var buttons [][]models.InlineKeyboardButton = make([][]models.InlineKeyboardButton, 0)
-
-	googleAccount := userProfile.LinkedAccount(model.ProviderGoogle)
-	if googleAccount != nil {
-		buttons = append(buttons, []models.InlineKeyboardButton{
-			{
-				Text:         "Unlink Google Account",
-				CallbackData: "linkg_google",
-			},
-		})
-	} else {
-		buttons = append(buttons, []models.InlineKeyboardButton{
-			{
-				Text:         "Link Google Account",
-				CallbackData: "unlink_google",
-			},
-		})
-	}
-
 	buttons = append(buttons, []models.InlineKeyboardButton{
 		{
 			Text:         "Share Location",
-			CallbackData: "share_location",
+			CallbackData: shareLocationCallback,
 		},
 		{
-			Text:         "Set Timezone",
-			CallbackData: "set_timezone",
+			Text:         "Update Preferred Calendar",
+			CallbackData: updateCalendarCallback,
 		},
 	})
 
-	// Create an inline keyboard with three buttons.
 	inlineKeyboard := models.InlineKeyboardMarkup{
 		InlineKeyboard: buttons,
 	}
 
-	params := &bot.SendMessageParams{
-		ChatID: chatID,
-		Text: `Settings:
+	sb := strings.Builder{}
+	sb.WriteString("Settings:")
+	sb.WriteString("\n - Preferred Calendar: ")
+	sb.WriteString(string(user.PreferredCalendar))
+	sb.WriteString("\n - Time Zone: ")
+	sb.WriteString(user.TimeZone)
 
-		- Google Account: ` + googleAccount.AccountName + `
-		- Timezone: ` + userProfile.User.TimeZone + `
-		`,
+	params := &bot.SendMessageParams{
+		ChatID:      chatID,
+		Text:        sb.String(),
 		ReplyMarkup: inlineKeyboard,
 	}
 
 	botAPI.SendMessage(ctx, params)
 }
 
-// linkGoogleAccountHandler returns the OAuth2 URL for linking a Google account.
-func (b *Bot) linkGoogleAccountHandler(ctx context.Context, botAPI *bot.Bot, update *models.Update) {
-	chatID := update.Message.Chat.ID
-	link, err := b.userService.GetOAuth2Url(
-		chatID,
-		func(err error) {
-			if err != nil {
-				b.sendMessage(ctx, chatID, err.Error(), "")
-			} else {
-				b.sendMessage(ctx, chatID, "Account linked successfully :)", "")
-			}
-		},
-		model.ProviderGoogle,
-	)
-	if err != nil {
-		b.sendMessage(ctx, chatID, err.Error(), "")
-		return
-	}
-
-	b.sendMessage(ctx, chatID, "Link your Google Calendar: "+link, "")
-}
-
-func (b *Bot) unlinkGoogleAccountHandler(ctx context.Context, botAPI *bot.Bot, update *models.Update) {
-	chatID := update.Message.Chat.ID
-	deleted, err := b.userService.UnlinkAccount(chatID, model.ProviderGoogle)
-	if err != nil {
-		b.sendMessage(ctx, chatID, err.Error(), "")
-		return
-	}
-
-	if deleted {
-		b.sendMessage(ctx, chatID, "Google account unlinked successfully.", "")
-	} else {
-		b.sendMessage(ctx, chatID, "Google account not linked.", "")
-
-	}
-}
-
 func (b *Bot) shareLocationHandler(ctx context.Context, botAPI *bot.Bot, update *models.Update) {
 	btn := models.KeyboardButton{
 		RequestLocation: true,
-		Text:            "Share Location to set Timezone. Works only on mobile.",
+		Text:            "Share Location",
 	}
 
 	markup := models.ReplyKeyboardMarkup{
@@ -233,11 +202,51 @@ func (b *Bot) shareLocationHandler(ctx context.Context, botAPI *bot.Bot, update 
 
 	msg := &bot.SendMessageParams{
 		ChatID:      update.CallbackQuery.From.ID,
-		Text:        "Share your location",
+		Text:        "Share your location to set your time zone.",
 		ReplyMarkup: markup,
 	}
 
 	botAPI.SendMessage(ctx, msg)
+}
+
+func (b *Bot) updateCalendarHandler(ctx context.Context, botAPI *bot.Bot, update *models.Update) {
+	chatID := update.CallbackQuery.From.ID
+
+	var buttons [][]models.InlineKeyboardButton = make([][]models.InlineKeyboardButton, 0)
+	for _, calendar := range model.CalendarTypes() {
+		buttons = append(buttons, []models.InlineKeyboardButton{
+			{
+				Text:         string(calendar),
+				CallbackData: string(selectCalendarPrefix + calendar),
+			},
+		})
+	}
+
+	inlineKeyboard := models.InlineKeyboardMarkup{
+		InlineKeyboard: buttons,
+	}
+
+	params := &bot.SendMessageParams{
+		ChatID:      chatID,
+		Text:        "Select your preferred calendar.",
+		ReplyMarkup: inlineKeyboard,
+	}
+
+	botAPI.SendMessage(ctx, params)
+}
+
+func (b *Bot) selectCalendarHandler(ctx context.Context, botAPI *bot.Bot, update *models.Update) {
+	chatID := update.CallbackQuery.From.ID
+	calendar := strings.TrimPrefix(update.CallbackQuery.Data, selectCalendarPrefix)
+
+	err := b.userService.UpdateUserPreferredCalendar(chatID, model.Calendar(calendar))
+	if err != nil {
+		b.sendMessage(ctx, chatID, err.Error(), "")
+		return
+	}
+
+	b.sendMessage(ctx, chatID, "Preferred calendar set to "+calendar, "")
+	b.sendSettingsKeyboard(ctx, botAPI, chatID)
 }
 
 func (b *Bot) locationHandler(ctx context.Context, botAPI *bot.Bot, update *models.Update) {
@@ -253,6 +262,7 @@ func (b *Bot) locationHandler(ctx context.Context, botAPI *bot.Bot, update *mode
 	}
 
 	b.sendMessage(ctx, update.Message.Chat.ID, "Timezone set to "+timeZone, "")
+	b.settingsHandler(ctx, botAPI, update)
 }
 
 // defaultHandler now checks if the message is forwarded and buffers it.
@@ -299,21 +309,21 @@ func (b *Bot) processBufferedMessages(ctx context.Context, chatID int64) {
 
 	textMessages := make([]model.TextMessage, len(messages))
 	for i, msg := range messages {
-		textMessages[i] = updateToMessage(msg)
+		textMessages[i] = UpdateToMessage(msg)
 	}
 
-	createdEvents, err := b.eventService.CreateEventsFromUserMessage(chatID, textMessages)
+	createdEvents, err := b.eventService.CreateEventsFromUserMessage(chatID, &textMessages)
 	if err != nil {
 		log.Error().
 			Int64("chatID", chatID).
 			Err(err).
 			Msg("Failed to create events")
 		b.sendMessage(ctx, chatID, "Failed to create events. Try later.", "")
-	} else if len(createdEvents) == 0 {
+	} else if len(*createdEvents) == 0 {
 		b.sendMessage(ctx, chatID, "No events found in forwarded messages.", "")
 	} else {
-		for _, event := range createdEvents {
-			b.sendMessage(ctx, chatID, formatEventForTelegram(event), models.ParseModeMarkdownV1)
+		for _, scheduledEvent := range *createdEvents {
+			b.sendMessage(ctx, chatID, FormatScheduledEvent(&scheduledEvent), models.ParseModeMarkdown)
 		}
 	}
 }
@@ -329,26 +339,6 @@ func (b *Bot) sendMessage(ctx context.Context, chatID int64, text string, parseM
 	b.chatBot.SendMessage(ctx, params)
 }
 
-func formatEventForTelegram(scheduledEvent model.ScheduledEvent) string {
-	event := scheduledEvent.Event
-
-	message := fmt.Sprintf("*%s*\n", event.Title)
-	if event.Description != "" {
-		message += fmt.Sprintf("%s\n", event.Description)
-	}
-	message += fmt.Sprintf("*When:* %s - %s\n",
-		event.Start.Format(time.DateTime),
-		event.End.Format(time.DateTime),
-	)
-	if event.Location != "" {
-		message += fmt.Sprintf("*Where:* %s\n", event.Location)
-	}
-	if scheduledEvent.Link != "" {
-		message += fmt.Sprintf("[More details](%s)\n", scheduledEvent.Link)
-	}
-	return message
-}
-
 func debugHandler(format string, args ...interface{}) {
 	log.Debug().Msg(fmt.Sprintf(format, args...))
 }
@@ -357,66 +347,20 @@ func errorsHandler(err error) {
 	log.Error().Err(err).Msg("Telegram bot error")
 }
 
-func updateToMessage(update *models.Update) model.TextMessage {
-	var msgType model.MessageType
-	if update.Message.Text != "" {
-		msgType = model.UserMessage
-	} else if update.Message.Caption != "" {
-		msgType = model.ForwardedMessage
-	} else {
-		return model.TextMessage{}
+func eventButtons(scheduledEvent *model.ScheduledEvent) []models.InlineKeyboardButton {
+	var buttons []models.InlineKeyboardButton = make([]models.InlineKeyboardButton, 0)
+
+	if scheduledEvent.Link != "" {
+		buttons = append(buttons, models.InlineKeyboardButton{
+			Text: "Link",
+			URL:  scheduledEvent.Link,
+		})
+	} else if scheduledEvent.Event.DeepLink != "" {
+		buttons = append(buttons, models.InlineKeyboardButton{
+			Text: "Add to Calendar",
+			URL:  scheduledEvent.Event.DeepLink,
+		})
 	}
 
-	var from string
-	var text string
-	var entities []models.MessageEntity
-
-	switch msgType {
-	case model.UserMessage:
-		from = update.Message.From.Username
-		text = update.Message.Text
-		entities = update.Message.Entities
-	case model.ForwardedMessage:
-		from = update.Message.From.Username
-		text = update.Message.Caption
-		entities = update.Message.CaptionEntities
-	}
-
-	var matterEntities = make([]models.MessageEntity, 0)
-	for _, entity := range entities {
-		if entity.Type == models.MessageEntityTypeTextLink ||
-			entity.Type == models.MessageEntityTypeTextMention ||
-			entity.Type == models.MessageEntityTypeURL {
-			matterEntities = append(matterEntities, entity)
-		}
-	}
-
-	return model.TextMessage{
-		From:        from,
-		Text:        FormatMessageText(text, matterEntities),
-		MessageType: msgType,
-	}
-}
-
-func FormatMessageText(text string, entities []models.MessageEntity) string {
-	if len(entities) == 0 {
-		return text
-	}
-
-	var sb strings.Builder
-	sort.SliceStable(entities, func(i, j int) bool {
-		return entities[i].Offset < entities[j].Offset
-	})
-
-	runeArray := []rune(text)
-	generalOffset := 0
-
-	for _, entity := range entities {
-		part := string(runeArray[generalOffset : entity.Offset+entity.Length])
-		sb.WriteString(fmt.Sprintf("%s[%s]", part, entity.URL))
-		generalOffset = entity.Offset + entity.Length
-	}
-
-	sb.WriteString(string(runeArray[generalOffset:]))
-	return sb.String()
+	return buttons
 }
